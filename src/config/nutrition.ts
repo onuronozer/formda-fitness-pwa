@@ -2,7 +2,7 @@ import type { NutritionActivityLevel } from '../domain/models'
 
 export const NUTRITION_SEED_VERSION = 3
 export const NUTRITION_CALCULATION_VERSION = 1
-export const NUTRITION_TARGET_RULE_VERSION = 1
+export const NUTRITION_TARGET_RULE_VERSION = 2
 
 export const NUTRITION_PROGRAM_CONFIG = {
   activityMultipliers: { sedentary: 1.2, light: 1.35, moderate: 1.5, high: 1.7 } satisfies Record<NutritionActivityLevel, number>,
@@ -15,6 +15,7 @@ export const NUTRITION_PROGRAM_CONFIG = {
 export const NUTRITION_RULE_PROVENANCE = {
   energyEquation: { id: 'nutrition-energy-mifflin-1990', type: 'EVIDENCE_RULE', evidenceIds: ['evidence-mifflin-1990'], version: 1 },
   proteinResistance: { id: 'nutrition-protein-resistance-2018', type: 'EVIDENCE_RULE', evidenceIds: ['evidence-morton-protein-2018'], version: 1 },
+  proteinGeneral: { id: 'nutrition-protein-general-v1', type: 'PROGRAM_RULE', evidenceIds: [], version: 1 },
   activityMultiplier: { id: 'nutrition-activity-multiplier-v1', type: 'PROGRAM_RULE', evidenceIds: [], version: 1 },
   calorieDeficit: { id: 'nutrition-calorie-deficit-v1', type: 'PROGRAM_RULE', evidenceIds: [], version: 1 },
   macroDistribution: { id: 'nutrition-macro-distribution-v1', type: 'PROGRAM_RULE', evidenceIds: [], version: 1 },

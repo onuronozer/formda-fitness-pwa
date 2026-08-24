@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FOOD_CATEGORIES, FOOD_PREPARATION_STATES, FOOD_SOURCE_TYPES, FOOD_VERIFICATION_STATUSES, MEAL_TYPES, NUTRIENT_KEYS } from '../domain/enums'
+import { FOOD_CATEGORIES, FOOD_PREPARATION_STATES, FOOD_SOURCE_TYPES, FOOD_VERIFICATION_STATUSES, MEAL_TYPES, NUTRIENT_KEYS, RULE_TYPES } from '../domain/enums'
 import { entityMetadataSchema } from './profileSchemas'
 
 const timestamp = z.string().datetime({ offset: true })
@@ -61,7 +61,8 @@ const nutritionFormulaAuditSchema = z.object({
   equationName: z.literal('MIFFLIN_ST_JEOR_1990'), equationVersion: z.literal(1), equationSourceId: z.string().min(1),
   inputs: z.object({ weightKg: z.number().finite().positive(), heightCm: z.number().finite().positive(), ageYears: z.number().int().positive(), sex: z.enum(['female', 'male']), activityLevel: z.enum(['sedentary', 'light', 'moderate', 'high']) }),
   restingEnergyKcal: z.number().finite().positive(), activityMultiplier: z.number().finite().positive(), maintenanceEnergyKcal: z.number().finite().positive(),
-  caloriePolicy: z.enum(['MAINTENANCE', 'PROGRAM_DEFICIT', 'MANUAL_OVERRIDE']), proteinRuleId: z.string().min(1), programRuleVersion: z.number().int().positive(),
+  caloriePolicy: z.enum(['MAINTENANCE', 'PROGRAM_DEFICIT', 'MANUAL_OVERRIDE']), proteinRuleId: z.string().min(1),
+  proteinRuleType: z.enum(RULE_TYPES).optional(), proteinEvidenceIds: z.array(z.string().min(1)).optional(), programRuleVersion: z.number().int().positive(),
 })
 
 const positiveTarget = z.number().finite().positive().max(100_000)

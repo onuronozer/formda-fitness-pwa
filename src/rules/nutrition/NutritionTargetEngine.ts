@@ -17,9 +17,15 @@ export class NutritionTargetEngine {
     const maintenanceEnergyKcal = restingEnergyKcal * activityMultiplier
     const programEnergy = ['weight_loss', 'fat_loss'].includes(profile.primaryGoal) ? maintenanceEnergyKcal * (1 - NUTRITION_PROGRAM_CONFIG.weightLossDeficitFraction) : maintenanceEnergyKcal
     const energyKcal = settings.manualEnergyKcal ?? programEnergy
-    const proteinG = settings.manualProteinG ?? profile.currentWeightKg * (profile.trainingDaysPerWeek >= 2 ? NUTRITION_PROGRAM_CONFIG.resistanceTrainingProteinGPerKg : NUTRITION_PROGRAM_CONFIG.generalProteinGPerKg)
+    const usesResistanceProteinRule = profile.trainingDaysPerWeek >= 2
+    const proteinRule = usesResistanceProteinRule ? NUTRITION_RULE_PROVENANCE.proteinResistance : NUTRITION_RULE_PROVENANCE.proteinGeneral
+    const proteinG = settings.manualProteinG ?? profile.currentWeightKg * (usesResistanceProteinRule ? NUTRITION_PROGRAM_CONFIG.resistanceTrainingProteinGPerKg : NUTRITION_PROGRAM_CONFIG.generalProteinGPerKg)
     const fatG = settings.manualFatG ?? energyKcal * NUTRITION_PROGRAM_CONFIG.fatEnergyFraction / 9
-    const carbohydrateG = settings.manualCarbohydrateG ?? Math.max(1, (energyKcal - proteinG * 4 - fatG * 9) / 4)
+    const programCarbohydrateG = (energyKcal - proteinG * 4 - fatG * 9) / 4
+    if (settings.manualCarbohydrateG === undefined && programCarbohydrateG <= 0) {
+      return { errors: ['PROGRAM_MACRO_DISTRIBUTION_INVALID'], warnings: [], sodiumVisibility: hasHypertension ? 'ENHANCED' : 'STANDARD' }
+    }
+    const carbohydrateG = settings.manualCarbohydrateG ?? programCarbohydrateG
     const manual = [settings.manualEnergyKcal, settings.manualProteinG, settings.manualCarbohydrateG, settings.manualFatG, settings.manualFiberG, settings.manualSodiumMg].some((value) => value !== undefined)
     const target: DailyNutritionTarget = {
       ...createEntityMetadata(new Date().toISOString()), userId: profile.id, localDate, energyKcal, proteinG, carbohydrateG, fatG,
@@ -29,7 +35,7 @@ export class NutritionTargetEngine {
         inputs: { weightKg: profile.currentWeightKg, heightCm: profile.heightCm, ageYears, sex: profile.sex, activityLevel: settings.activityLevel },
         restingEnergyKcal, activityMultiplier, maintenanceEnergyKcal,
         caloriePolicy: settings.manualEnergyKcal ? 'MANUAL_OVERRIDE' : ['weight_loss', 'fat_loss'].includes(profile.primaryGoal) ? 'PROGRAM_DEFICIT' : 'MAINTENANCE',
-        proteinRuleId: NUTRITION_RULE_PROVENANCE.proteinResistance.id, programRuleVersion: NUTRITION_TARGET_RULE_VERSION,
+        proteinRuleId: proteinRule.id, proteinRuleType: proteinRule.type, proteinEvidenceIds: [...proteinRule.evidenceIds], programRuleVersion: NUTRITION_TARGET_RULE_VERSION,
       },
     }
     return { target, errors: [], warnings: hasHypertension && settings.manualSodiumMg === undefined ? ['SODIUM_VISIBLE_WITHOUT_AUTOMATIC_TARGET'] : [], sodiumVisibility: hasHypertension ? 'ENHANCED' : 'STANDARD' }

@@ -1,4 +1,4 @@
-import type { FoodCategory, FoodPreparationState, FoodSourceType, FoodVerificationStatus, MealType, NutrientKey } from '../enums'
+import type { FoodCategory, FoodPreparationState, FoodSourceType, FoodVerificationStatus, MealType, NutrientKey, RuleType } from '../enums'
 import type { EntityMetadata } from './common'
 
 export type NutrientProfile = Record<NutrientKey, number | null>
@@ -102,6 +102,8 @@ export interface NutritionFormulaAudit {
   maintenanceEnergyKcal: number
   caloriePolicy: 'MAINTENANCE' | 'PROGRAM_DEFICIT' | 'MANUAL_OVERRIDE'
   proteinRuleId: string
+  proteinRuleType?: RuleType
+  proteinEvidenceIds?: string[]
   programRuleVersion: number
 }
 

@@ -39,8 +39,20 @@ describe('NutritionTargetEngine', () => {
   it('uses the provenance-linked resistance protein rule and program macro distribution', () => {
     const target = engine.generate(profile, settings(), '2026-08-24').target!
     expect(target.proteinG).toBe(profile.currentWeightKg * 1.6)
-    expect(target.formulaAudit?.proteinRuleId).toBe('nutrition-protein-resistance-2018')
+    expect(target.formulaAudit).toMatchObject({ proteinRuleId: 'nutrition-protein-resistance-2018', proteinRuleType: 'EVIDENCE_RULE', proteinEvidenceIds: ['evidence-morton-protein-2018'] })
     expect(target.energyKcal).toBeCloseTo(target.proteinG * 4 + target.carbohydrateG * 4 + target.fatG * 9)
+  })
+
+  it('classifies the general protein default as a PROGRAM_RULE without evidence', () => {
+    const target = engine.generate({ ...profile, trainingDaysPerWeek: 1 }, settings(), '2026-08-24').target!
+    expect(target.proteinG).toBe(profile.currentWeightKg * 1.2)
+    expect(target.formulaAudit).toMatchObject({ proteinRuleId: 'nutrition-protein-general-v1', proteinRuleType: 'PROGRAM_RULE', proteinEvidenceIds: [] })
+  })
+
+  it('rejects an incompatible automatic macro distribution instead of silently clamping carbohydrate', () => {
+    const result = engine.generate({ ...profile, currentWeightKg: 350 }, settings({ manualEnergyKcal: 500 }), '2026-08-24')
+    expect(result.target).toBeUndefined()
+    expect(result.errors).toContain('PROGRAM_MACRO_DISTRIBUTION_INVALID')
   })
 
   it('increases sodium visibility for hypertension without inventing a target', () => {
