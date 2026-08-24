@@ -11,6 +11,8 @@
 
 ## Account isolation
 
+- IndexedDB adı uygulamaya özel namespace kullanır; aynı GitHub Pages origin'indeki başka repo uygulamalarıyla generic DB adı paylaşılmaz.
+- Önceki `formda-local-db` verisi yalnız yeni namespace ilk kez oluşturulurken transaction içinde kopyalanır; kaynak DB geri dönüş için yerinde kalır ve mevcut hedef asla ezilmez.
 - Domain UUID ile Firebase Auth UID ayrı tutulur.
 - Bir Auth UID yalnız bir local workspace'e unique index ile bağlanır.
 - Logout cloud UID eşlemesini silmez; pending outbox aynı workspace'e bağlı kalır.

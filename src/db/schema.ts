@@ -1,4 +1,5 @@
-export const DATABASE_NAME = 'formda-local-db'
+export const LEGACY_DATABASE_NAME = 'formda-local-db'
+export const DATABASE_NAME = 'formda-fitness-pwa-local-db'
 export const DATABASE_SCHEMA_VERSION = 6
 
 export const versionOneStores = {

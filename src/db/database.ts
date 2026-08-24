@@ -36,7 +36,7 @@ import type {
   WaterRecord,
 } from '../domain/models'
 import { toLocalDate } from '../utils/localDate'
-import { DATABASE_NAME, versionFiveStores, versionFourStores, versionOneStores, versionSixStores, versionThreeStores, versionTwoStores } from './schema'
+import { DATABASE_NAME, LEGACY_DATABASE_NAME, versionFiveStores, versionFourStores, versionOneStores, versionSixStores, versionThreeStores, versionTwoStores } from './schema'
 
 export class FormdaDatabase extends Dexie {
   userProfiles!: EntityTable<UserProfile, 'id'>
@@ -187,7 +187,37 @@ export class FormdaDatabase extends Dexie {
 
 export const appDb = new FormdaDatabase()
 
+export async function migrateLegacyDatabase(
+  database: FormdaDatabase,
+  legacyName = LEGACY_DATABASE_NAME,
+) {
+  if (database.name === legacyName || await Dexie.exists(database.name) || !await Dexie.exists(legacyName)) return false
+
+  const legacy = new FormdaDatabase(legacyName)
+  try {
+    await legacy.open()
+    const snapshots = new Map<string, unknown[]>()
+    for (const table of legacy.tables) snapshots.set(table.name, await table.toArray())
+
+    await database.open()
+    await database.transaction('rw', database.tables, async () => {
+      for (const table of database.tables) {
+        const records = snapshots.get(table.name)
+        if (records?.length) await table.bulkPut(records)
+      }
+    })
+    return true
+  } catch (error) {
+    database.close()
+    await Dexie.delete(database.name)
+    throw error
+  } finally {
+    legacy.close()
+  }
+}
+
 export async function initializeDatabase(database: FormdaDatabase = appDb) {
+  if (!database.isOpen() && database.name === DATABASE_NAME) await migrateLegacyDatabase(database)
   if (!database.isOpen()) await database.open()
   return database
 }

@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FormdaDatabase } from '../db/database'
-import { versionOneStores, versionThreeStores, versionTwoStores } from '../db/schema'
+import { FormdaDatabase, migrateLegacyDatabase } from '../db/database'
+import { DATABASE_NAME, versionOneStores, versionSixStores, versionThreeStores, versionTwoStores } from '../db/schema'
 import { UserRepository } from '../db/repositories'
 import { validProfile } from './fixtures'
 
@@ -13,6 +13,36 @@ afterEach(async () => {
 })
 
 describe('UserRepository', () => {
+  it('uses a deployment-specific database namespace', () => {
+    expect(DATABASE_NAME).toBe('formda-fitness-pwa-local-db')
+  })
+
+  it('copies a legacy database once without overwriting an existing target', async () => {
+    const legacyName = testName()
+    const targetName = testName()
+    const legacy = new Dexie(legacyName)
+    legacy.version(6).stores(versionSixStores)
+    await legacy.open()
+    await legacy.table('userProfiles').put({ ...validProfile, schemaVersion: 6 })
+    legacy.close()
+
+    const target = new FormdaDatabase(targetName)
+    await expect(migrateLegacyDatabase(target, legacyName)).resolves.toBe(true)
+    expect((await target.userProfiles.get(validProfile.id))?.displayName).toBe('Deniz')
+    target.close()
+
+    const reopened = new FormdaDatabase(targetName)
+    await reopened.open()
+    await reopened.userProfiles.put({ ...validProfile, displayName: 'Hedef kayıt', schemaVersion: 6 })
+    reopened.close()
+
+    const existingTarget = new FormdaDatabase(targetName)
+    await expect(migrateLegacyDatabase(existingTarget, legacyName)).resolves.toBe(false)
+    await existingTarget.open()
+    expect((await existingTarget.userProfiles.get(validProfile.id))?.displayName).toBe('Hedef kayıt')
+    existingTarget.close()
+  })
+
   it('saves, loads and updates a profile', async () => {
     const db = new FormdaDatabase(testName())
     const repository = new UserRepository(db)
