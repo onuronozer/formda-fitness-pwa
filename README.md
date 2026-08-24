@@ -47,7 +47,7 @@ Firebase Web config benzersiz ama privileged olmayan proje/app tanımlayıcılar
 
 ## Authentication ve hesap politikası
 
-Ayarlar ve `/auth` ekranı e-posta/parola ile hesap oluşturma, parola teyidi, giriş, nötr password reset, doğrulama e-postası, resend, refresh, sign-out, cloud aç/kapat ve hesap silmeyi destekler. Hesapsız kullanım Firebase anonymous account oluşturmadan local-only devam eder.
+Ayarlar ve `/auth` ekranı e-posta/parola ile hesap oluşturma, parola teyidi, giriş, nötr password reset, doğrulama e-postası, resend, refresh, sign-out, cloud aç/kapat ve hesap silmeyi destekler. Yeni kullanıcı auth ekranında hesap oluşturarak veya mevcut hesabıyla giriş yaparak devam eder; Firebase anonymous account kullanılmaz.
 
 Cloud upload yalnız doğrulanmış e-posta ile başlar. `Cloud verilerimi sil` uzak kayıtları batch olarak siler ve sync'i kapatır; Auth hesabı kalır. `Hesabımı sil` önce cloud kayıtlarını, sonra Firebase Auth hesabını siler; recent-login veya partial failure kullanıcıya recovery state olarak gösterilir. Yerel veri yalnız ayrıca seçilirse silinir.
 

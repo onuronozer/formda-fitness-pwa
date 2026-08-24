@@ -193,21 +193,32 @@ export async function migrateLegacyDatabase(
 ) {
   if (database.name === legacyName || await Dexie.exists(database.name) || !await Dexie.exists(legacyName)) return false
 
-  const legacy = new FormdaDatabase(legacyName)
+  const legacy = new Dexie(legacyName)
+  let targetSeed: Dexie | undefined
   try {
     await legacy.open()
     const snapshots = new Map<string, unknown[]>()
     for (const table of legacy.tables) snapshots.set(table.name, await table.toArray())
 
-    await database.open()
-    await database.transaction('rw', database.tables, async () => {
-      for (const table of database.tables) {
+    const legacyStores = Object.fromEntries(legacy.tables.map((table) => [
+      table.name,
+      [table.schema.primKey.src, ...table.schema.indexes.map((index) => index.src)].join(','),
+    ]))
+    targetSeed = new Dexie(database.name)
+    targetSeed.version(legacy.verno).stores(legacyStores)
+    await targetSeed.open()
+    await targetSeed.transaction('rw', targetSeed.tables, async () => {
+      for (const table of targetSeed?.tables ?? []) {
         const records = snapshots.get(table.name)
         if (records?.length) await table.bulkPut(records)
       }
     })
+    targetSeed.close()
+    targetSeed = undefined
+    await database.open()
     return true
   } catch (error) {
+    targetSeed?.close()
     database.close()
     await Dexie.delete(database.name)
     throw error

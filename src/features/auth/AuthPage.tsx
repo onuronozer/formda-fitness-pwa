@@ -23,6 +23,5 @@ export function AuthPage() {
   return <main className="app-canvas auth-screen"><section className="auth-shell">
     <header><AppLogo /></header>
     <div><h1>Giriş Yap</h1>{!authService.configured && <p className="settings-notice">Cloud şu anda kullanılamıyor.</p>}<AccountAuthForm localUserId={profile?.id} onConnected={connected} /></div>
-    <button className="secondary-button auth-local-button" onClick={() => navigate(profile ? '/today' : '/onboarding', { replace: true })}>Hesapsız Devam Et</button>
   </section></main>
 }

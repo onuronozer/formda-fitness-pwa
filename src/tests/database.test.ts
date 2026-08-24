@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FormdaDatabase, migrateLegacyDatabase } from '../db/database'
-import { DATABASE_NAME, versionOneStores, versionSixStores, versionThreeStores, versionTwoStores } from '../db/schema'
+import { DATABASE_NAME, versionFiveStores, versionOneStores, versionSixStores, versionThreeStores, versionTwoStores } from '../db/schema'
 import { UserRepository } from '../db/repositories'
 import { validProfile } from './fixtures'
 
@@ -41,6 +41,22 @@ describe('UserRepository', () => {
     await existingTarget.open()
     expect((await existingTarget.userProfiles.get(validProfile.id))?.displayName).toBe('Hedef kayıt')
     existingTarget.close()
+  })
+
+  it('copies legacy v5 data before applying the v6 workspace migration', async () => {
+    const legacyName = testName()
+    const targetName = testName()
+    const legacy = new Dexie(legacyName)
+    legacy.version(5).stores(versionFiveStores)
+    await legacy.open()
+    await legacy.table('userProfiles').put({ ...validProfile, schemaVersion: 5 })
+    legacy.close()
+
+    const target = new FormdaDatabase(targetName)
+    await expect(migrateLegacyDatabase(target, legacyName)).resolves.toBe(true)
+    expect((await target.userProfiles.get(validProfile.id))?.schemaVersion).toBe(6)
+    expect(await target.localWorkspaces.where('localUserId').equals(validProfile.id).first()).toMatchObject({ ownerType: 'LOCAL_ONLY', state: 'ACTIVE' })
+    target.close()
   })
 
   it('saves, loads and updates a profile', async () => {
