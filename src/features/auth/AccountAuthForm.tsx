@@ -5,7 +5,7 @@ import { authErrorCode, authMessage, authService, useAuthStore } from '../../ser
 
 type Mode = 'sign_in' | 'create' | 'reset'
 
-export function AccountAuthForm({ localUserId, onConnected }: { localUserId?: string; onConnected?: () => void | Promise<void> }) {
+export function AccountAuthForm({ onConnected }: { onConnected?: () => void | Promise<void> }) {
   const [mode, setMode] = useState<Mode>('sign_in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,8 +25,8 @@ export function AccountAuthForm({ localUserId, onConnected }: { localUserId?: st
         await authService.sendPasswordReset(email.trim())
         setMessage({ tone: 'success', text: 'Bu adres için bir hesap varsa sıfırlama bağlantısı gönderildi.' })
       } else {
-        if (mode === 'create') await accountService.createAccount(email.trim(), password, localUserId)
-        else await accountService.signIn(email.trim(), password, localUserId)
+        if (mode === 'create') await accountService.createAccount(email.trim(), password)
+        else await accountService.signIn(email.trim(), password)
         setPassword(''); setConfirmation('')
         await onConnected?.()
       }

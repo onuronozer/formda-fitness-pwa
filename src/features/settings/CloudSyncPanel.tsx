@@ -56,7 +56,7 @@ export function CloudSyncPanel({ userId }: { userId: string }) {
 
   return <section className="settings-section cloud-sync-section"><header><div><h2>Cloud Sync</h2><p>Hesabınla cihazlar arasında eşitle.</p></div><span className={`sync-pill ${status}`}>{preference?.enabled ? <Cloud size={15} /> : <CloudOff size={15} />}{statusLabels[status]}</span></header>
     {!authService.configured && <p className="settings-notice">Cloud şu anda kullanılamıyor. Yerel özellikler çalışmaya devam eder.</p>}
-    {!authenticated ? <AccountAuthForm localUserId={userId} onConnected={connected} /> : auth.status === 'email_unverified' ? <AccountAuthForm localUserId={userId} onConnected={connected} /> : <div className="cloud-connected">
+    {!authenticated ? <AccountAuthForm onConnected={connected} /> : auth.status === 'email_unverified' ? <AccountAuthForm onConnected={connected} /> : <div className="cloud-connected">
       <div><Cloud size={19} /><span><strong>{auth.identity?.email}</strong><small>{preference?.lastSyncedAt ? `Son eşitleme ${new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(new Date(preference.lastSyncedAt))}` : 'İlk eşitleme bekleniyor'}</small></span></div>
       <div className="settings-actions">
         <button className="secondary-button compact-button" onClick={() => run(async () => { await accountService.enableCloud(); setMessage({ tone: 'success', text: 'Cloud Sync açık.' }) })} disabled={busy || preference?.enabled}><Cloud size={17} /> Aç</button>

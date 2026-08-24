@@ -15,6 +15,7 @@ const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then((mo
 const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })))
 const ProgressPage = lazy(() => import('./features/progress/ProgressPage').then((module) => ({ default: module.ProgressPage })))
 const ExercisePage = lazy(() => import('./features/exercise/ExercisePage').then((module) => ({ default: module.ExercisePage })))
+const NutritionPage = lazy(() => import('./features/nutrition/NutritionPage').then((module) => ({ default: module.NutritionPage })))
 const WorkoutSessionPage = lazy(() => import('./features/workout/WorkoutSessionPage').then((module) => ({ default: module.WorkoutSessionPage })))
 const IntervalSessionPage = lazy(() => import('./features/interval/IntervalSessionPage').then((module) => ({ default: module.IntervalSessionPage })))
 const AuthPage = lazy(() => import('./features/auth/AuthPage').then((module) => ({ default: module.AuthPage })))
@@ -63,6 +64,7 @@ function AppRouter() {
         <Route element={<AppLayout />}>
           <Route path="/today" element={<TodayPage />} />
           <Route path="/exercise" element={<ExercisePage />} />
+          <Route path="/nutrition" element={<NutritionPage />} />
           <Route path="/workout/session/:sessionId" element={<WorkoutSessionPage />} />
           <Route path="/interval/:protocolId" element={<IntervalSessionPage />} />
           <Route path="/progress" element={<ProgressPage />} />

@@ -41,7 +41,7 @@ export const HEALTH_GATE_STATUSES = [
 ] as const
 export type HealthGateStatus = (typeof HEALTH_GATE_STATUSES)[number]
 
-export const EVIDENCE_TYPES = ['guideline', 'systematic_review', 'meta_analysis', 'randomized_trial'] as const
+export const EVIDENCE_TYPES = ['guideline', 'systematic_review', 'meta_analysis', 'randomized_trial', 'prediction_equation'] as const
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number]
 
 export const RULE_TYPES = ['EVIDENCE_RULE', 'PRODUCT_SAFETY_RULE', 'PROGRAM_RULE'] as const
@@ -100,3 +100,19 @@ export type CardioSessionStatus = (typeof CARDIO_SESSION_STATUSES)[number]
 
 export const SYNC_STATUSES = ['pending', 'syncing', 'synced', 'error'] as const
 export type SyncStatus = (typeof SYNC_STATUSES)[number]
+
+export const FOOD_SOURCE_TYPES = ['USDA_FDC', 'TURKISH_CURATED', 'MANUFACTURER', 'OPEN_FOOD_FACTS', 'USER_DEFINED', 'RECIPE_CALCULATED'] as const
+export type FoodSourceType = (typeof FOOD_SOURCE_TYPES)[number]
+export const FOOD_VERIFICATION_STATUSES = ['VERIFIED', 'PENDING', 'USER_ENTERED'] as const
+export type FoodVerificationStatus = (typeof FOOD_VERIFICATION_STATUSES)[number]
+export const FOOD_PREPARATION_STATES = ['raw', 'cooked', 'drained', 'prepared', 'as_sold'] as const
+export type FoodPreparationState = (typeof FOOD_PREPARATION_STATES)[number]
+export const FOOD_CATEGORIES = [
+  'breakfast', 'bread_grain', 'dairy_cheese', 'egg', 'meat', 'chicken', 'fish', 'legume', 'vegetable', 'fruit', 'soup',
+  'olive_oil_dish', 'rice_bulgur', 'pasta', 'main_dish', 'salad', 'snack', 'dessert', 'beverage', 'nuts', 'sauce_fat', 'packaged', 'other',
+] as const
+export type FoodCategory = (typeof FOOD_CATEGORIES)[number]
+export const MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'] as const
+export type MealType = (typeof MEAL_TYPES)[number]
+export const NUTRIENT_KEYS = ['energyKcal', 'proteinG', 'carbohydrateG', 'fatG', 'fiberG', 'sugarG', 'saturatedFatG', 'sodiumMg', 'potassiumMg', 'calciumMg', 'ironMg', 'cholesterolMg'] as const
+export type NutrientKey = (typeof NUTRIENT_KEYS)[number]

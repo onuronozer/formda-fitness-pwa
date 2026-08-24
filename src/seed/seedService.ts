@@ -5,6 +5,11 @@ import { EXERCISE_SEED_VERSION } from '../config/workouts'
 import { clinicalEvidenceSeed, CLINICAL_EVIDENCE_SEED_VERSION } from './evidenceSeed'
 import { intervalProtocolSeed } from './intervalSeed'
 import { INTERVAL_RULE_VERSION } from '../config/phase3b'
+import { NUTRITION_SEED_VERSION } from '../config/nutrition'
+
+const exerciseSeedTasks = new WeakMap<FormdaDatabase, Promise<void>>()
+const nutritionSeedTasks = new WeakMap<FormdaDatabase, Promise<void>>()
+const CORE_EXERCISE_COUNTS = { exercises: 35, muscles: 16, equipment: 9 } as const
 
 export async function ensureSeedVersions(database: FormdaDatabase = appDb) {
   const existing = await database.seedVersions.where('dataset').equals('health_rules').first()
@@ -41,9 +46,20 @@ export async function ensureSeedVersions(database: FormdaDatabase = appDb) {
   }
 }
 
-export async function ensureExerciseSeed(database: FormdaDatabase = appDb) {
+export function ensureExerciseSeed(database: FormdaDatabase = appDb) {
+  const activeTask = exerciseSeedTasks.get(database)
+  if (activeTask) return activeTask
+
+  const task = ensureExerciseSeedUnlocked(database).finally(() => {
+    if (exerciseSeedTasks.get(database) === task) exerciseSeedTasks.delete(database)
+  })
+  exerciseSeedTasks.set(database, task)
+  return task
+}
+
+async function ensureExerciseSeedUnlocked(database: FormdaDatabase) {
   const existing = await database.seedVersions.where('dataset').equals('exercises').first()
-  if (existing && existing.dataVersion >= EXERCISE_SEED_VERSION && await database.exercises.count() > 0) return
+  if (existing && existing.dataVersion >= EXERCISE_SEED_VERSION && await hasValidExerciseSeed(database)) return
 
   const seed = await import('./exerciseSeed')
   const now = new Date().toISOString()
@@ -63,5 +79,70 @@ export async function ensureExerciseSeed(database: FormdaDatabase = appDb) {
       dataVersion: EXERCISE_SEED_VERSION,
       appliedAt: now,
     })
+  })
+}
+
+async function hasValidExerciseSeed(database: FormdaDatabase) {
+  const [exercises, muscles, equipment] = await Promise.all([
+    database.exercises.toArray(), database.muscles.toArray(), database.equipment.toArray(),
+  ])
+  if (exercises.length < CORE_EXERCISE_COUNTS.exercises || muscles.length < CORE_EXERCISE_COUNTS.muscles || equipment.length < CORE_EXERCISE_COUNTS.equipment) return false
+
+  const muscleIds = new Set(muscles.map((item) => item.id))
+  const equipmentIds = new Set(equipment.map((item) => item.id))
+  const exerciseIds = new Set(exercises.map((item) => item.id))
+  const arrayFields = ['equipmentIds', 'primaryMuscleIds', 'secondaryMuscleIds', 'instructions', 'commonMistakes', 'progressionExerciseIds', 'regressionExerciseIds', 'substitutionExerciseIds'] as const
+
+  return exercises.every((exercise) =>
+    typeof exercise.name === 'string'
+    && typeof exercise.slug === 'string'
+    && typeof exercise.active === 'boolean'
+    && arrayFields.every((field) => Array.isArray(exercise[field]))
+    && exercise.primaryMuscleIds.every((id) => muscleIds.has(id))
+    && exercise.secondaryMuscleIds.every((id) => muscleIds.has(id))
+    && exercise.equipmentIds.every((id) => equipmentIds.has(id))
+    && [...exercise.progressionExerciseIds, ...exercise.regressionExerciseIds, ...exercise.substitutionExerciseIds].every((id) => exerciseIds.has(id)),
+  )
+}
+
+export function ensureNutritionSeed(database: FormdaDatabase = appDb) {
+  const activeTask = nutritionSeedTasks.get(database)
+  if (activeTask) return activeTask
+  const task = ensureNutritionSeedUnlocked(database).finally(() => { if (nutritionSeedTasks.get(database) === task) nutritionSeedTasks.delete(database) })
+  nutritionSeedTasks.set(database, task)
+  return task
+}
+
+async function ensureNutritionSeedUnlocked(database: FormdaDatabase) {
+  const [foodVersion, recipeVersion] = await Promise.all([
+    database.seedVersions.where('dataset').equals('foods').first(), database.seedVersions.where('dataset').equals('recipes').first(),
+  ])
+  const staticFoods = await database.foods.filter((food) => !food.userId).toArray()
+  const staticRecipes = await database.recipes.filter((recipe) => !recipe.userId).toArray()
+  const recipeIds = new Set(staticRecipes.map((recipe) => recipe.id))
+  const ingredients = recipeIds.size ? await database.recipeIngredients.filter((ingredient) => recipeIds.has(ingredient.recipeId)).toArray() : []
+  const foodIds = new Set(staticFoods.map((food) => food.id))
+  const valid = foodVersion?.dataVersion === NUTRITION_SEED_VERSION && recipeVersion?.dataVersion === NUTRITION_SEED_VERSION
+    && staticFoods.length >= 100 && staticRecipes.length >= 40 && ingredients.length > 0
+    && staticFoods.every((food) => food.verificationStatus !== 'VERIFIED' || Boolean(food.sourceId && food.sourceUrl))
+    && ingredients.every((ingredient) => recipeIds.has(ingredient.recipeId) && foodIds.has(ingredient.foodId) && ingredient.amountG > 0)
+  if (valid) return
+
+  const [{ foodSeed }, { recipeSeed, recipeIngredientSeed }] = await Promise.all([import('./foodSeed.generated'), import('./recipeSeed')])
+  const now = new Date().toISOString()
+  await database.transaction('rw', [database.foods, database.recipes, database.recipeIngredients, database.seedVersions], async () => {
+    const oldRecipeIds = await database.recipes.filter((recipe) => !recipe.userId).primaryKeys()
+    if (oldRecipeIds.length) await database.recipeIngredients.where('recipeId').anyOf(oldRecipeIds).delete()
+    await database.foods.filter((food) => !food.userId).delete()
+    await database.recipes.filter((recipe) => !recipe.userId).delete()
+    await database.foods.bulkPut(foodSeed)
+    await database.recipes.bulkPut(recipeSeed)
+    await database.recipeIngredients.bulkPut(recipeIngredientSeed)
+    for (const [dataset, existing] of [['foods', foodVersion], ['recipes', recipeVersion]] as const) {
+      await database.seedVersions.put({
+        ...(existing ? { ...existing, updatedAt: now, version: existing.version + 1 } : createEntityMetadata(now)),
+        dataset, dataVersion: NUTRITION_SEED_VERSION, appliedAt: now,
+      })
+    }
   })
 }

@@ -7,6 +7,8 @@ export class LocalDataService {
     const planIds = await this.db.workoutPlans.where('userId').equals(userId).primaryKeys()
     const dayIds = planIds.length ? await this.db.workoutDays.where('workoutPlanId').anyOf(planIds).primaryKeys() : []
     const sessionIds = await this.db.workoutSessions.where('userId').equals(userId).primaryKeys()
+    const recipeIds = await this.db.recipes.where('userId').equals(userId).primaryKeys()
+    const mealIds = await this.db.meals.where('userId').equals(userId).primaryKeys()
     const tables = [
       this.db.userProfiles, this.db.healthProfiles, this.db.healthConditions, this.db.conditionAnswers,
       this.db.weightRecords, this.db.waistRecords, this.db.stepRecords, this.db.healthEvaluationLogs,
@@ -15,6 +17,8 @@ export class LocalDataService {
       this.db.waterRecords, this.db.dailyHydrationTargets, this.db.dailyGoalSettings, this.db.dailyGoalPlans,
       this.db.cardioSessions, this.db.shortcutActionReceipts, this.db.syncOutbox,
       this.db.cloudSyncPreferences, this.db.syncConflictAudits,
+      this.db.foods, this.db.recipes, this.db.recipeIngredients, this.db.favoriteFoods, this.db.meals, this.db.mealItems,
+      this.db.dailyNutritionTargets, this.db.nutritionSettings,
     ]
     await this.db.transaction('rw', tables, async () => {
       await Promise.all([
@@ -40,10 +44,18 @@ export class LocalDataService {
         this.db.syncOutbox.where('userId').equals(userId).delete(),
         this.db.cloudSyncPreferences.where('userId').equals(userId).delete(),
         this.db.syncConflictAudits.where('localUserId').equals(userId).delete(),
+        this.db.foods.where('userId').equals(userId).delete(),
+        this.db.recipes.where('userId').equals(userId).delete(),
+        this.db.favoriteFoods.where('userId').equals(userId).delete(),
+        this.db.meals.where('userId').equals(userId).delete(),
+        this.db.dailyNutritionTargets.where('userId').equals(userId).delete(),
+        this.db.nutritionSettings.where('userId').equals(userId).delete(),
       ])
       if (dayIds.length) await this.db.workoutExercises.where('workoutDayId').anyOf(dayIds).delete()
       if (planIds.length) await this.db.workoutDays.where('workoutPlanId').anyOf(planIds).delete()
       if (sessionIds.length) await this.db.workoutSets.where('workoutSessionId').anyOf(sessionIds).delete()
+      if (recipeIds.length) await this.db.recipeIngredients.where('recipeId').anyOf(recipeIds).delete()
+      if (mealIds.length) await this.db.mealItems.where('mealId').anyOf(mealIds).delete()
     })
   }
 

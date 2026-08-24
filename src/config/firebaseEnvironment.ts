@@ -10,6 +10,7 @@ const environmentSchema = z.object({
   appId: z.string().min(1),
   expectedProjectId: z.string().min(1).optional(),
   appCheckSiteKey: z.string().min(1).optional(),
+  appCheckStatus: z.enum(['not_configured', 'monitoring', 'enforced']).default('not_configured'),
 })
 
 const requestedEnvironment = import.meta.env.VITE_FIREBASE_ENVIRONMENT
@@ -23,14 +24,16 @@ const parsed = environmentSchema.safeParse({
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
   expectedProjectId: import.meta.env.VITE_FIREBASE_EXPECTED_PROJECT_ID || undefined,
   appCheckSiteKey: import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY || undefined,
+  appCheckStatus: import.meta.env.VITE_FIREBASE_APPCHECK_STATUS || 'not_configured',
 })
 
 const projectMatches = parsed.success && (!parsed.data.expectedProjectId || parsed.data.expectedProjectId === parsed.data.projectId)
+const appCheckMatches = parsed.success && (parsed.data.appCheckStatus === 'not_configured' || Boolean(parsed.data.appCheckSiteKey))
 
 export const firebaseEnvironment = {
-  configured: parsed.success && projectMatches,
+  configured: parsed.success && projectMatches && appCheckMatches,
   environment: parsed.success ? parsed.data.environment : 'disabled' as const,
-  config: parsed.success && projectMatches ? {
+  config: parsed.success && projectMatches && appCheckMatches ? {
     apiKey: parsed.data.apiKey,
     authDomain: parsed.data.authDomain,
     projectId: parsed.data.projectId,
@@ -39,13 +42,17 @@ export const firebaseEnvironment = {
     appId: parsed.data.appId,
   } : undefined,
   appCheckSiteKey: parsed.success ? parsed.data.appCheckSiteKey : undefined,
+  appCheckStatus: parsed.success ? parsed.data.appCheckStatus : 'not_configured' as const,
   useEmulator: import.meta.env.VITE_FIREBASE_USE_EMULATOR === 'true',
   authEmulatorUrl: import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL || 'http://127.0.0.1:9099',
   firestoreEmulatorHost: import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_HOST || '127.0.0.1',
   firestoreEmulatorPort: Number(import.meta.env.VITE_FIREBASE_FIRESTORE_EMULATOR_PORT || 8080),
   issue: requestedEnvironment === undefined || requestedEnvironment === 'disabled'
     ? 'CLOUD_EXPLICITLY_DISABLED'
-    : !parsed.success ? 'FIREBASE_CONFIG_INVALID' : !projectMatches ? 'FIREBASE_PROJECT_MISMATCH' : undefined,
+    : !parsed.success ? 'FIREBASE_CONFIG_INVALID'
+      : !projectMatches ? 'FIREBASE_PROJECT_MISMATCH'
+        : !appCheckMatches ? 'FIREBASE_APPCHECK_KEY_REQUIRED'
+          : undefined,
 } as const
 
 export type FirebaseEnvironment = typeof firebaseEnvironment

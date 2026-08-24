@@ -33,8 +33,8 @@ describe('rule classification and evidence validation', () => {
   })
 
   it('contains only verified curated clinical references with source metadata', () => {
-    expect(clinicalEvidenceSeed).toHaveLength(10)
+    expect(clinicalEvidenceSeed).toHaveLength(12)
     expect(clinicalEvidenceSeed.every((reference: EvidenceReference) => reference.verificationStatus === 'VERIFIED' && Boolean(reference.url) && Boolean(reference.organization || reference.authors?.length))).toBe(true)
-    expect(clinicalEvidenceSeed.filter((reference) => reference.doi)).toHaveLength(7)
+    expect(clinicalEvidenceSeed.filter((reference) => reference.doi)).toHaveLength(9)
   })
 })

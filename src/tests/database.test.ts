@@ -54,7 +54,7 @@ describe('UserRepository', () => {
 
     const target = new FormdaDatabase(targetName)
     await expect(migrateLegacyDatabase(target, legacyName)).resolves.toBe(true)
-    expect((await target.userProfiles.get(validProfile.id))?.schemaVersion).toBe(6)
+    expect((await target.userProfiles.get(validProfile.id))?.schemaVersion).toBe(7)
     expect(await target.localWorkspaces.where('localUserId').equals(validProfile.id).first()).toMatchObject({ ownerType: 'LOCAL_ONLY', state: 'ACTIVE' })
     target.close()
   })
@@ -79,7 +79,7 @@ describe('UserRepository', () => {
 
     const db = new FormdaDatabase(name)
     await db.open()
-    expect((await db.userProfiles.get(validProfile.id))?.schemaVersion).toBe(6)
+    expect((await db.userProfiles.get(validProfile.id))?.schemaVersion).toBe(7)
     const initialWeight = await db.weightRecords.where('userId').equals(validProfile.id).first()
     expect(initialWeight?.valueKg).toBe(validProfile.currentWeightKg)
     expect(initialWeight?.localDate).toBe('2026-08-24')
@@ -99,7 +99,7 @@ describe('UserRepository', () => {
 
     const db = new FormdaDatabase(name)
     await db.open()
-    expect((await db.userProfiles.get(validProfile.id))?.schemaVersion).toBe(6)
+    expect((await db.userProfiles.get(validProfile.id))?.schemaVersion).toBe(7)
     expect((await db.weightRecords.where('userId').equals(validProfile.id).first())?.valueKg).toBe(77)
     expect(db.tables.map((table) => table.name)).toContain('workoutSessions')
     db.close()

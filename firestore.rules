@@ -16,7 +16,15 @@ service cloud.firestore {
         && data.id == recordId
         && data.userId == userId
         && data.localUserId is string
-        && data.entityType is string
+        && data.entityType in [
+          'userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers',
+          'weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs',
+          'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks',
+          'workoutPlans', 'workoutDays', 'workoutExercises', 'workoutSessions', 'workoutSets',
+          'waterRecords', 'dailyHydrationTargets', 'dailyGoalSettings', 'dailyGoalPlans', 'cardioSessions',
+          'foods', 'recipes', 'recipeIngredients', 'favoriteFoods', 'meals', 'mealItems',
+          'dailyNutritionTargets', 'nutritionSettings'
+        ]
         && data.entityId is string
         && data.operation in ['upsert', 'delete']
         && data.payload is map

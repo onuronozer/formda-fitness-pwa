@@ -6,10 +6,10 @@ import { firebaseAdapter } from './FirebaseAdapter'
 import { SyncQueue } from './SyncQueue'
 import type { AuthIdentity, CloudAdapter, CloudRecord } from './types'
 
-export const SYNCABLE_ENTITY_TYPES: SyncEntityType[] = ['userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers', 'weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs', 'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks', 'workoutPlans', 'workoutDays', 'workoutExercises', 'workoutSessions', 'workoutSets', 'waterRecords', 'dailyHydrationTargets', 'dailyGoalSettings', 'dailyGoalPlans', 'cardioSessions']
+export const SYNCABLE_ENTITY_TYPES: SyncEntityType[] = ['userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers', 'weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs', 'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks', 'workoutPlans', 'workoutDays', 'workoutExercises', 'workoutSessions', 'workoutSets', 'waterRecords', 'dailyHydrationTargets', 'dailyGoalSettings', 'dailyGoalPlans', 'cardioSessions', 'foods', 'recipes', 'recipeIngredients', 'favoriteFoods', 'meals', 'mealItems', 'dailyNutritionTargets', 'nutritionSettings']
 
 const RESTORE_ORDER = new Map(SYNCABLE_ENTITY_TYPES.map((type, index) => [type, index]))
-const directUserTables = new Set<SyncEntityType>(['userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers', 'weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs', 'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks', 'workoutPlans', 'workoutSessions', 'waterRecords', 'dailyHydrationTargets', 'dailyGoalSettings', 'dailyGoalPlans', 'cardioSessions'])
+const directUserTables = new Set<SyncEntityType>(['userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers', 'weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs', 'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks', 'workoutPlans', 'workoutSessions', 'waterRecords', 'dailyHydrationTargets', 'dailyGoalSettings', 'dailyGoalPlans', 'cardioSessions', 'foods', 'recipes', 'favoriteFoods', 'meals', 'dailyNutritionTargets', 'nutritionSettings'])
 const versionOf = (record?: Record<string, unknown>) => typeof record?.version === 'number' ? record.version : 0
 
 export interface BootstrapResult { workspace: LocalWorkspace; pulled: number; pushed: number; localUserId?: string }
@@ -193,6 +193,12 @@ export class SyncService {
       } else if (entityType === 'workoutSets') {
         const sessionIds = await this.db.workoutSessions.where('userId').equals(userId).primaryKeys()
         records = sessionIds.length ? await this.db.workoutSets.where('workoutSessionId').anyOf(sessionIds).toArray() : []
+      } else if (entityType === 'recipeIngredients') {
+        const recipeIds = await this.db.recipes.where('userId').equals(userId).primaryKeys()
+        records = recipeIds.length ? await this.db.recipeIngredients.where('recipeId').anyOf(recipeIds).toArray() : []
+      } else if (entityType === 'mealItems') {
+        const mealIds = await this.db.meals.where('userId').equals(userId).primaryKeys()
+        records = mealIds.length ? await this.db.mealItems.where('mealId').anyOf(mealIds).toArray() : []
       }
       output.push([entityType, records as Array<EntityMetadata & Record<string, unknown>>])
     }

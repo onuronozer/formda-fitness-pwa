@@ -54,6 +54,17 @@ describe('WorkoutService hardening', () => {
     db.close()
   })
 
+  it('does not expose a persisted plan with a missing exercise reference', async () => {
+    const db = new FormdaDatabase(testName())
+    const repository = new WorkoutRepository(db)
+    const plan = { ...createEntityMetadata(), userId: validProfile.id, name: 'Broken', goal: 'maintain' as const, daysPerWeek: 2, healthStatusAtGeneration: 'NORMAL', active: true, generatedByRuleVersion: 2, validationResult: { valid: true, errors: [], warnings: [] }, validatedAt: new Date().toISOString() }
+    const days = [0, 1].map((dayIndex) => ({ ...createEntityMetadata(), workoutPlanId: plan.id, dayIndex, scheduledWeekday: dayIndex + 1, name: `Gün ${dayIndex + 1}` }))
+    const targets = days.map((day, order) => ({ ...createEntityMetadata(), workoutDayId: day.id, exerciseId: order === 0 ? 'exercise-missing' : 'exercise-bodyweight-squat', order: 0, targetSets: 3, targetRepMin: 8, targetRepMax: 12, targetRpe: 7, restSeconds: 90, modified: false }))
+    await repository.savePlan(plan, days, targets)
+    expect(await new WorkoutService(db).getPlanOverview(validProfile.id)).toBeUndefined()
+    db.close()
+  })
+
   it('rejects session creation without a pre-workout event', async () => {
     const db = new FormdaDatabase(testName()); const repository = new WorkoutRepository(db)
     const plan = { ...createEntityMetadata(), userId: validProfile.id, name: 'Validated', goal: 'maintain' as const, daysPerWeek: 2, healthStatusAtGeneration: 'NORMAL', active: true, generatedByRuleVersion: 2, validationResult: { valid: true, errors: [], warnings: [] }, validatedAt: new Date().toISOString() }

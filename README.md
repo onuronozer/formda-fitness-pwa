@@ -1,6 +1,6 @@
 # Formda
 
-Formda, mobil-first ve local-first bir fitness/sağlık takip PWA'sıdır. Phase 3B.1, mevcut Firebase sync'i production environment ayrımı, tam Auth yaşam döngüsü, local workspace izolasyonu, gerçek Rules/Auth emulator testleri ve account deletion recovery akışıyla sıkılaştırır.
+Formda, mobil-first ve local-first bir fitness, sağlık ve beslenme takip PWA'sıdır. Phase 4; doğrulanmış food provenance, deterministik gram hesabı, ingredient tabanlı tarifler, öğün snapshot'ları ve offline nutrition takibini mevcut hesap/sync mimarisine ekler.
 
 Uygulama tanı koymaz, hastalık tedavi etmez ve bir hareketin kesin güvenli olduğunu iddia etmez. Klinik release durumu `CLINICAL_REVIEW_PENDING` olarak kalır; insan reviewer veya release onayı atanmış değildir.
 
@@ -62,8 +62,9 @@ Cloud'a yalnız user-generated kayıtlar gider:
 - DailyHealthCheck, PreWorkoutCheck ve yanıtları
 - Workout plan/day/exercise, session ve set kayıtları
 - WaterRecord, hydration target, daily goal settings/plan ve cardio session
+- Custom food, custom recipe/ingredient, favori, öğün/MealItem snapshot, günlük nutrition target ve nutrition settings
 
-Static exercise/evidence/media/interval seed tabloları kullanıcı dokümanı olarak cloud'a kopyalanmaz.
+Static exercise/evidence/media/interval/food/recipe seed tabloları kullanıcı dokümanı olarak cloud'a kopyalanmaz.
 
 Event tarzı kayıtlar ID bazlı merge edilir. Profile/settings ve program yapıları `version` ardından `updatedAt` ile çözülür. Aynı version/timestamp fakat farklı content canonical deterministic tie-break ile çözülür ve `syncConflictAudits` kaydı bırakır. Tombstone otomatik live update ile yeniden canlandırılmaz. Aynı entity/version/operation outbox anahtarı idempotenttir.
 
@@ -126,14 +127,22 @@ V1 static seed, 28 dakikalık `Yürüyüş Interval 1` programıdır: 5 dk ısı
 
 Timer foreground'da `warmup`, `work`, `recovery`, `cooldown`, `complete` fazlarını deterministik elapsed-time hesabıyla yürütür. `CardioSession` start, complete/early stop, tur ve 1-5 zorluk feedback'i saklar. `NORMAL` uygundur; bu protokol `MODIFIED` için kapalıdır. Medical review ve red flag her zaman bloklanır.
 
-## Dexie v6 ve backup v5
+## Beslenme
 
-Dexie v6, Phase 3B tablolarına şu hardening tablolarını ekler:
+Food araması ve öğün kaydı tamamen Dexie üzerinde çalışır. Curated seed 122 adet `VERIFIED` USDA FoodData Central kaydı ve 40 adet ingredient composition ile hesaplanan, klinik/nutrition review durumu `PENDING` Türkçe tarif içerir. Eksik nutrient sıfıra çevrilmez; her nutrient için known/completeness durumu korunur.
 
-- `localWorkspaces`: local domain user ID ile opsiyonel Auth UID eşlemesi
-- `syncConflictAudits`: payload içermeyen conflict provenance
+Food ve tarif hesapları `NutritionCalculationService`, günlük target hesabı `NutritionTargetEngine` içindedir. Mifflin-St Jeor enerji denklemi ve resistance-training protein kuralı evidence provenance taşır; activity multiplier, yüzde 10 weight-loss deficit ve macro dağılımı açıkça `PROGRAM_RULE`'dır. Kullanıcı manuel target override yapabilir. Hipertansiyon yalnız sodium görünürlüğünü artırır; tıbbi diyet reçetesi veya food yasağı üretmez.
 
-Backup formatı v5 olarak kalır. Yalnız aktif workspace'in user-generated domainleri export edilir; outbox, conflict audit, Shortcut receipt, static seed, Auth UID/e-posta ve Firebase token yedeğe girmez. Import cloud bağlantısını otomatik restore etmez. Backup v2, v3 ve v4 importları desteklenir.
+MealItem oluşturulurken food/tarif versionı ve tam nutrition snapshot saklanır. Böylece seed, custom food veya recipe versionı değişse de geçmiş öğün değişmez. Custom food ve custom recipe create/edit/soft-delete, favorites/recent ve gram/doğrulanmış serving girişi desteklenir.
+
+## Dexie v7 ve backup v6
+
+Dexie v7, mevcut Phase 3B tablolarına şunları ekler:
+
+- `foods`, `recipes`, `recipeIngredients`, `favoriteFoods`
+- `meals`, `mealItems`, `dailyNutritionTargets`, `nutritionSettings`
+
+Backup formatı v6'dır. Yalnız aktif workspace'in user-generated domainleri export edilir; outbox, conflict audit, Shortcut receipt, static seed, Auth UID/e-posta ve Firebase token yedeğe girmez. Import cloud bağlantısını otomatik restore etmez. Backup v2, v3, v4 ve v5 importları desteklenir.
 
 ## Test ve geliştirme
 
@@ -153,10 +162,10 @@ Firebase testleri production projesine yazmaz. `@firebase/rules-unit-testing` ge
 
 ## Bundle ve PWA
 
-Auth, Firestore ve Firebase core ayrı lazy chunk'lardır. Sync coordinator yalnız cloud etkin kullanıcıda yüklenir. Firebase SDK chunk'ları local-only PWA precache listesine alınmaz; uygulama shell'i ve Dexie özellikleri offline kalır. GitHub Pages base path ve SPA fallback workflow'u korunur.
+Auth, Firestore ve Firebase core ayrı lazy chunk'lardır. Nutrition route ve 122-food seed route açılana kadar yüklenmez; PWA precache'e dahil edilerek sonrasında offline food search sağlar. Sync coordinator yalnız cloud etkin kullanıcıda yüklenir. Firebase SDK chunk'ları local-only PWA precache listesine alınmaz; uygulama shell'i ve Dexie özellikleri offline kalır. GitHub Pages base path ve SPA fallback workflow'u korunur.
 
 ## Production runbook
 
 Environment guard, App Check rollout, CI secret/variable listesi, authorized domain ve hosting header sınırı [docs/firebase-production.md](./docs/firebase-production.md) içinde; veri envanteri [docs/privacy-data-inventory.md](./docs/privacy-data-inventory.md), threat review [docs/security-review.md](./docs/security-review.md) içindedir.
 
-Phase 4'e geçilmemiştir. `CLINICAL_REVIEW_PENDING` public clinical release için yeterli değildir.
+Phase 3B.2 gate durumu [docs/release-gate.md](./docs/release-gate.md) içindedir. `CLINICAL_REVIEW_PENDING` değişmemiştir ve public clinical release için yeterli değildir.

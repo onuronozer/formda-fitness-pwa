@@ -1,11 +1,12 @@
 import { format } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Activity, Check, CheckCircle2, ChevronRight, Dumbbell, Flame, Footprints, HeartPulse, Play, Plus, Ruler, Scale } from 'lucide-react'
+import { Check, CheckCircle2, ChevronRight, Dumbbell, Footprints, HeartPulse, Play, Plus, Ruler, Scale } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { DailyHealthSheet } from '../../components/DailyHealthSheet'
 import { MeasurementSheet } from '../../components/MeasurementSheet'
+import { NutritionSummary } from '../../components/NutritionSummary'
 import { PageHeader } from '../../components/PageHeader'
 import { PreWorkoutSheet } from '../../components/PreWorkoutSheet'
 import { RiskStatus } from '../../components/RiskStatus'
@@ -14,6 +15,8 @@ import { UserRepository } from '../../db/repositories'
 import { DailyHealthService } from '../../services/DailyHealthService'
 import { DailyGoalService } from '../../services/DailyGoalService'
 import { MeasurementDashboardService } from '../../services/MeasurementDashboardService'
+import { MealService } from '../../services/MealService'
+import { NutritionTargetService } from '../../services/NutritionTargetService'
 import { ProfileService } from '../../services/ProfileService'
 import { WorkoutService } from '../../services/WorkoutService'
 import { toLocalDate } from '../../utils/localDate'
@@ -25,6 +28,8 @@ const dashboardService = new MeasurementDashboardService()
 const dailyHealthService = new DailyHealthService()
 const workoutService = new WorkoutService()
 const dailyGoalService = new DailyGoalService()
+const mealService = new MealService()
+const nutritionTargetService = new NutritionTargetService()
 
 function signed(value: number | undefined, unit: string) {
   if (value === undefined) return 'Henüz yok'
@@ -48,6 +53,17 @@ export function TodayPage() {
   const workout = useLiveQuery(() => profile ? workoutService.getTodayView(profile.id, today) : undefined, [profile?.id, today])
   const evaluation = daily?.evaluation ?? (snapshot ? profileService.evaluate(snapshot) : undefined)
   const dailyGoal = useLiveQuery(() => profile ? dailyGoalService.getPlan(profile.id, today) : undefined, [profile?.id, today])
+  const nutritionDay = useLiveQuery(() => profile ? mealService.getDay(profile.id, today) : [], [profile?.id, today], [])
+  const nutritionTotal = useLiveQuery(() => profile ? mealService.getDailyTotal(profile.id, today) : undefined, [profile?.id, today])
+  const nutritionTarget = useLiveQuery(() => profile ? nutritionTargetService.get(profile.id, today) : undefined, [profile?.id, today])
+  const nutritionTargetRequest = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!profile) return
+    const key = `${profile.id}:${today}`
+    if (nutritionTargetRequest.current === key) return
+    nutritionTargetRequest.current = key
+    void nutritionTargetService.getOrCreate(profile.id, today).catch((error) => { nutritionTargetRequest.current = undefined; reportTechnicalError('Today nutrition target create', error) })
+  }, [profile, today])
   const goalRequest = useRef<string | undefined>(undefined)
   useEffect(() => {
     if (!profile || !evaluation) return
@@ -93,6 +109,12 @@ export function TodayPage() {
 
     {profile && <WaterCard userId={profile.id} localDate={today} targetMl={dailyGoal?.hydrationTargetMl} />}
 
+    <section className="today-nutrition">
+      <NutritionSummary compact total={nutritionTotal} target={nutritionTarget} />
+      <div className="today-meal-strip">{[['BREAKFAST', 'Kahvaltı'], ['LUNCH', 'Öğle'], ['DINNER', 'Akşam'], ['SNACK', 'Ara']] .map(([type, label]) => <span key={type} className={nutritionDay.some(({ meal, items }) => meal.mealType === type && items.length) ? 'filled' : ''}>{label}</span>)}</div>
+      <button onClick={() => navigate('/nutrition')}><span>{nutritionTotal?.itemCount ? `${nutritionTotal.itemCount} kayıt` : 'İlk öğününü ekle'}</span><span>Beslenmeye Git <ChevronRight size={17} /></span></button>
+    </section>
+
     <section className="today-workout-card"><header><span>BUGÜNKÜ ANTRENMAN</span>{evaluation && <RiskStatus status={evaluation.status} compact />}</header>{!workout?.plan ? <div><Dumbbell size={27} /><h2>Programını oluştur</h2><p>Temel haftalık planın henüz yok.</p><button className="primary-button" onClick={() => navigate('/exercise')}>Programımı Oluştur</button></div> : !workout.day ? <div><Check size={27} /><h2>Dinlenme günü</h2><p>Bir sonraki antrenman gününe hazırlan.</p></div> : <div><Dumbbell size={27} /><h2>{workout.day.name}</h2><p>{workout.exercises.length} hareket · ~{Math.max(20, workout.exercises.length * 7)} dk</p><button className="primary-button" onClick={requestStart} disabled={workout.session?.status === 'completed'}>{workout.session?.status === 'completed' ? 'Tamamlandı' : workout.session?.status === 'in_progress' ? 'Devam Et' : 'Antrenmanı Başlat'} <ChevronRight size={18} /></button></div>}{startError && <p className="workout-block-message" role="alert">{startError}</p>}</section>
 
     {dailyGoal?.cardioTarget === 'interval' && dailyGoal.intervalProtocolId && <section className="today-interval-card"><div><span>YÜRÜYÜŞ INTERVAL</span><strong>28 dk</strong><small>5 dk ısınma · 1 dk tempolu / 2 dk rahat ×6</small></div><button aria-label="Yürüyüş intervalini başlat" onClick={() => navigate(`/interval/${dailyGoal.intervalProtocolId}`)}><Play size={20} /></button></section>}
@@ -103,8 +125,6 @@ export function TodayPage() {
       <div className="goal-progress"><div><span>Başlangıç {summary?.weight.startingWeight?.toFixed(1) ?? '--'}</span><span>Hedef {profile?.targetWeightKg.toFixed(1) ?? '--'}</span></div><div className="goal-track"><span style={{ width: `${(summary?.weight.goalProgress ?? 0) * 100}%` }} /></div></div>
     </section>
     <section className="today-secondary-grid" aria-label="Günlük ölçümler"><article><span className="metric-icon steps"><Footprints size={20} /></span><p>Adım</p><strong>{summary?.steps.todaySteps?.toLocaleString('tr-TR') ?? '--'}</strong><small>{(dailyGoal?.stepTarget ?? summary?.steps.target)?.toLocaleString('tr-TR')} hedef{dailyGoal?.reasons.includes('STEP_MANUAL_OVERRIDE') ? ' · manuel' : ' · bu hafta'}</small></article><article><span className="metric-icon waist"><Ruler size={20} /></span><p>Bel</p><strong>{summary?.waist.latest?.toFixed(1) ?? '--'}<b>{summary?.waist.latest !== undefined ? ' cm' : ''}</b></strong><small>{signed(summary?.waist.change, 'cm')}</small></article></section>
-    <section className="placeholder-metrics" aria-label="Yaklaşan takip alanları"><article><Activity size={18} /><div><span>Antrenman</span><strong>{workout?.day ? workout.day.name : workout?.plan ? 'Dinlenme' : 'Program yok'}</strong></div><small>Phase 3A</small></article><article><Flame size={18} /><div><span>Kalori</span><strong>--</strong></div><small>Phase 4</small></article></section>
-
     <MeasurementSheet open={quickAddOpen} userId={profile?.id ?? ''} onClose={() => setQuickAddOpen(false)} />
     <DailyHealthSheet open={healthOpen} userId={profile?.id ?? ''} conditions={snapshot?.conditions ?? []} previous={daily?.check} previousResponses={daily?.responses} onClose={() => setHealthOpen(false)} onSaved={(result) => {
       if (!startRequested) return

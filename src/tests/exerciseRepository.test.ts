@@ -59,4 +59,27 @@ describe('ExerciseRepository', () => {
     expect(exercises.flatMap((exercise) => exercise.instructions).join(' ').toLocaleLowerCase('tr-TR')).not.toMatch(/bel fıtığı için güvenli|tansiyon için güvenli|medikal olarak güvenli/)
     db.close()
   })
+
+  it('repairs a malformed legacy exercise seed even when its version is current', async () => {
+    const db = new FormdaDatabase(testName()); const repository = new ExerciseRepository(db)
+    const original = (await repository.list())[0]
+    const malformed = structuredClone(original) as Partial<typeof original>
+    delete malformed.primaryMuscleIds
+    await db.exercises.put(malformed as typeof original)
+
+    const repaired = await repository.list()
+    expect(repaired).toHaveLength(35)
+    expect(repaired.every((exercise) => Array.isArray(exercise.primaryMuscleIds))).toBe(true)
+    db.close()
+  })
+
+  it('coalesces concurrent seed reads into one valid dataset', async () => {
+    const db = new FormdaDatabase(testName()); const repository = new ExerciseRepository(db)
+    const [exercises, muscles, equipment] = await Promise.all([
+      repository.list(), repository.listMuscles(), repository.listEquipment(),
+    ])
+    expect([exercises.length, muscles.length, equipment.length]).toEqual([35, 16, 9])
+    expect(await db.seedVersions.where('dataset').equals('exercises').count()).toBe(1)
+    db.close()
+  })
 })

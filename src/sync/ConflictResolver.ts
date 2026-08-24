@@ -1,8 +1,8 @@
 import type { SyncEntityType } from '../domain/models'
 import type { ConflictResolution } from './types'
 
-export const EVENT_ENTITY_TYPES = new Set<SyncEntityType>(['weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs', 'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks', 'workoutSessions', 'workoutSets', 'waterRecords', 'dailyHydrationTargets', 'dailyGoalPlans', 'cardioSessions'])
-export const VERSIONED_ENTITY_TYPES = new Set<SyncEntityType>(['userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers', 'workoutPlans', 'workoutDays', 'workoutExercises', 'dailyGoalSettings'])
+export const EVENT_ENTITY_TYPES = new Set<SyncEntityType>(['weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs', 'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks', 'workoutSessions', 'workoutSets', 'waterRecords', 'dailyHydrationTargets', 'dailyGoalPlans', 'cardioSessions', 'meals', 'mealItems', 'dailyNutritionTargets'])
+export const VERSIONED_ENTITY_TYPES = new Set<SyncEntityType>(['userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers', 'workoutPlans', 'workoutDays', 'workoutExercises', 'dailyGoalSettings', 'foods', 'recipes', 'recipeIngredients', 'favoriteFoods', 'nutritionSettings'])
 
 const version = (record: Record<string, unknown>) => typeof record.version === 'number' ? record.version : 0
 const updatedAt = (record: Record<string, unknown>) => typeof record.updatedAt === 'string' ? record.updatedAt : ''

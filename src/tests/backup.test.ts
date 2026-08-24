@@ -9,6 +9,11 @@ import { DailyHealthService } from '../services/DailyHealthService'
 import { WorkoutService } from '../services/WorkoutService'
 import { WaterService } from '../services/WaterService'
 import { DailyGoalService } from '../services/DailyGoalService'
+import { NutritionRepository } from '../db/repositories'
+import { RecipeService } from '../services/RecipeService'
+import { MealService } from '../services/MealService'
+import { NutritionTargetService } from '../services/NutritionTargetService'
+import type { NutrientProfile } from '../domain/models'
 
 const names: string[] = []
 const testName = () => { const name = `formda-backup-${crypto.randomUUID()}`; names.push(name); return name }
@@ -23,7 +28,7 @@ describe('BackupService', () => {
     await source.waistRecords.add({ ...createEntityMetadata(), userId: validProfile.id, valueCm: 88, measuredAt: '2026-08-24T06:05:00.000Z', localDate: '2026-08-24', source: 'manual' })
     await source.stepRecords.add({ ...createEntityMetadata(), userId: validProfile.id, stepCount: 6420, measuredAt: '2026-08-24T09:00:00.000Z', localDate: '2026-08-24', source: 'manual' })
     const exported = await new BackupService(source).exportData()
-    expect(exported.schemaVersion).toBe(5)
+    expect(exported.schemaVersion).toBe(6)
     expect(exported.userData.userProfiles).toHaveLength(1)
 
     const target = new FormdaDatabase(testName())
@@ -62,9 +67,9 @@ describe('BackupService', () => {
     }
     const result = await new BackupService(db).importData(legacy)
     expect(result.importedSchemaVersion).toBe(2)
-    expect((await db.weightRecords.toArray())[0]).toMatchObject({ source: 'import', localDate: '2026-08-24', schemaVersion: 5 })
+    expect((await db.weightRecords.toArray())[0]).toMatchObject({ source: 'import', localDate: '2026-08-24', schemaVersion: 7 })
     expect((await db.waistRecords.toArray())[0].localDate).toBe('2026-08-24')
-    expect((await db.stepRecords.toArray())[0]).toMatchObject({ localDate: '2026-08-24', schemaVersion: 5 })
+    expect((await db.stepRecords.toArray())[0]).toMatchObject({ localDate: '2026-08-24', schemaVersion: 7 })
     db.close()
   })
 
@@ -139,14 +144,46 @@ describe('BackupService', () => {
     source.close(); target.close()
   })
 
-  it('exports and imports Phase 3B user data in backup v5', async () => {
+  it('exports and imports Phase 3B user data in backup v6', async () => {
     const source = new FormdaDatabase(testName()); await new UserRepository(source).save(validProfile)
     await new WaterService(source).add(validProfile.id, 250, 'quick_add', '2026-08-24T09:00:00.000Z')
     await new DailyGoalService(source).getOrCreate(validProfile.id, '2026-08-24', 'NORMAL')
     const backup = await new BackupService(source).exportData()
-    expect(backup.schemaVersion).toBe(5); expect(backup.userData.waterRecords).toHaveLength(1); expect(backup.userData.dailyGoalPlans).toHaveLength(1)
+    expect(backup.schemaVersion).toBe(6); expect(backup.userData.waterRecords).toHaveLength(1); expect(backup.userData.dailyGoalPlans).toHaveLength(1)
     const target = new FormdaDatabase(testName()); await new BackupService(target).importData(backup)
     expect(await target.waterRecords.count()).toBe(1); expect(await target.dailyHydrationTargets.count()).toBe(1); expect(await target.dailyGoalSettings.count()).toBe(1); expect(await target.dailyGoalPlans.count()).toBe(1)
+    source.close(); target.close()
+  })
+
+  it('imports a Phase 3B backup v5 with empty nutrition tables', async () => {
+    const source = new FormdaDatabase(testName()); await new UserRepository(source).save(validProfile)
+    const current = await new BackupService(source).exportData()
+    const legacy = structuredClone(current) as unknown as { schemaVersion: number; seedManifest: Record<string, number>; userData: Record<string, unknown> }
+    legacy.schemaVersion = 5; legacy.seedManifest = { exercises: current.seedManifest.exercises }
+    for (const key of ['foods', 'recipes', 'recipeIngredients', 'favoriteFoods', 'meals', 'mealItems', 'dailyNutritionTargets', 'nutritionSettings']) delete legacy.userData[key]
+    const target = new FormdaDatabase(testName())
+    expect((await new BackupService(target).importData(legacy)).importedSchemaVersion).toBe(5)
+    expect(await target.meals.count()).toBe(0); expect((await new UserRepository(target).getActive())?.id).toBe(validProfile.id)
+    source.close(); target.close()
+  })
+
+  it('exports only user nutrition data and restores recipe and meal snapshot relations', async () => {
+    const source = new FormdaDatabase(testName()); await new UserRepository(source).save({ ...validProfile, sex: 'male' })
+    const nutrients: NutrientProfile = { energyKcal: 100, proteinG: 10, carbohydrateG: 5, fatG: 4, fiberG: null, sugarG: null, saturatedFatG: null, sodiumMg: 80, potassiumMg: null, calciumMg: null, ironMg: null, cholesterolMg: null }
+    const repository = new NutritionRepository(source)
+    const custom = await repository.saveCustomFood(validProfile.id, { name: 'Yedek Ürünü', aliases: [], category: 'packaged', servingDefinitions: [], nutrientsPer100g: nutrients, preparationState: 'as_sold' })
+    const recipe = await new RecipeService(source).create(validProfile.id, { name: 'Yedek Tarifi', category: 'main_dish', description: 'Yedek testi', servings: 2, preparation: 'Karıştır.', ingredients: [{ foodId: custom.id, amountG: 200 }] })
+    await repository.toggleFavorite(validProfile.id, 'RECIPE', recipe.recipe.id)
+    const item = await new MealService(source).addRecipe(validProfile.id, '2026-08-24', 'DINNER', recipe.recipe.id, { servings: 1 })
+    await new NutritionTargetService(source).getOrCreate(validProfile.id, '2026-08-24')
+    const backup = await new BackupService(source).exportData()
+    expect(backup.userData.foods).toHaveLength(1); expect(backup.userData.foods[0].id).toBe(custom.id)
+    expect(backup.userData.recipes).toHaveLength(1); expect(backup.userData.mealItems[0].nutritionSnapshot).toEqual(item.nutritionSnapshot)
+
+    const target = new FormdaDatabase(testName()); await new BackupService(target).importData(backup)
+    expect((await target.recipeIngredients.where('recipeId').equals(recipe.recipe.id).first())?.foodId).toBe(custom.id)
+    expect((await target.mealItems.get(item.id))?.nutritionSnapshot).toEqual(item.nutritionSnapshot)
+    expect(await target.dailyNutritionTargets.count()).toBe(1); expect(await target.nutritionSettings.count()).toBe(1)
     source.close(); target.close()
   })
 })

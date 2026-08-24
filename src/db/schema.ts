@@ -1,6 +1,6 @@
 export const LEGACY_DATABASE_NAME = 'formda-local-db'
 export const DATABASE_NAME = 'formda-fitness-pwa-local-db'
-export const DATABASE_SCHEMA_VERSION = 6
+export const DATABASE_SCHEMA_VERSION = 7
 
 export const versionOneStores = {
   userProfiles: 'id, updatedAt, deletedAt',
@@ -61,4 +61,16 @@ export const versionSixStores = {
   ...versionFiveStores,
   localWorkspaces: 'id, ownerType, state, &authUid, &localUserId, updatedAt',
   syncConflictAudits: 'id, workspaceId, localUserId, entityType, entityId, resolvedAt, [localUserId+resolvedAt]',
+}
+
+export const versionSevenStores = {
+  ...versionSixStores,
+  foods: 'id, userId, normalizedName, category, sourceType, active, [userId+normalizedName]',
+  recipes: 'id, userId, familyId, normalizedName, active, recipeVersion, [userId+normalizedName]',
+  recipeIngredients: 'id, recipeId, foodId, sortOrder, [recipeId+sortOrder]',
+  favoriteFoods: 'id, userId, itemType, itemId, [userId+itemType], &[userId+itemType+itemId], deletedAt',
+  meals: 'id, userId, localDate, [userId+localDate], mealType, eatenAt, deletedAt',
+  mealItems: 'id, mealId, foodId, recipeId, updatedAt, deletedAt',
+  dailyNutritionTargets: 'id, userId, localDate, &[userId+localDate], createdAt',
+  nutritionSettings: 'id, &userId, updatedAt',
 }

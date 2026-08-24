@@ -1,8 +1,9 @@
-import { format, parseISO } from 'date-fns'
+import { eachDayOfInterval, format, parseISO, subDays } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Footprints, Minus, Pencil, Plus, Ruler, Scale, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
-import { lazy, Suspense, useState } from 'react'
+import { Apple, Footprints, Minus, Pencil, Plus, Ruler, Scale, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { MeasurementSheet, type MeasurementRecord } from '../../components/MeasurementSheet'
 import { PageHeader } from '../../components/PageHeader'
@@ -11,16 +12,21 @@ import type { StepRecord, WaistRecord, WeightRecord } from '../../domain/models'
 import { UserRepository } from '../../db/repositories'
 import { MeasurementDashboardService } from '../../services/MeasurementDashboardService'
 import { MeasurementService, type MeasurementKind } from '../../services/MeasurementService'
+import { MealService } from '../../services/MealService'
+import { formatNutrition } from '../../services/NutritionCalculationService'
+import { NutritionTargetService } from '../../services/NutritionTargetService'
 import { toLocalDate } from '../../utils/localDate'
 import { reportTechnicalError } from '../../utils/technicalError'
 
-type Category = 'weight' | 'waist' | 'steps'
+type Category = 'weight' | 'waist' | 'steps' | 'nutrition'
 interface EditorState { kind?: MeasurementKind; record?: MeasurementRecord }
 interface DeleteState { kind: MeasurementKind; record: MeasurementRecord }
 
 const userRepository = new UserRepository()
 const dashboardService = new MeasurementDashboardService()
 const measurementService = new MeasurementService()
+const mealService = new MealService()
+const nutritionTargetService = new NutritionTargetService()
 const MeasurementChart = lazy(() => import('../../components/MeasurementChart').then((module) => ({ default: module.MeasurementChart })))
 
 function LazyChart(props: React.ComponentProps<typeof MeasurementChart>) {
@@ -36,13 +42,29 @@ function signed(value: number | undefined, unit: string) {
 function recordDate(localDate: string) { return format(parseISO(localDate), 'd MMM', { locale: tr }) }
 
 export function ProgressPage() {
+  const navigate = useNavigate()
   const [category, setCategory] = useState<Category>('weight')
   const [range, setRange] = useState<ProgressRange>(30)
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [pendingDelete, setPendingDelete] = useState<DeleteState | null>(null)
   const profile = useLiveQuery(() => userRepository.getActive())
+  const targetRequest = useRef<string | undefined>(undefined)
   const endDate = toLocalDate(new Date())
   const data = useLiveQuery(() => profile ? dashboardService.getProgress(profile.id, profile.targetWeightKg, endDate, range) : undefined, [profile?.id, profile?.targetWeightKg, endDate, range], null)
+  const nutrition = useLiveQuery(async () => {
+    if (!profile) return undefined
+    const startDate = toLocalDate(subDays(parseISO(endDate), range - 1))
+    const [totals, target] = await Promise.all([mealService.getRangeTotals(profile.id, startDate, endDate), nutritionTargetService.get(profile.id, endDate)])
+    const byDate = new Map(totals.map((entry) => [entry.localDate, entry.total]))
+    return { target, days: eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) }).map((date) => ({ localDate: toLocalDate(date), total: byDate.get(toLocalDate(date)) })) }
+  }, [profile?.id, endDate, range])
+  useEffect(() => {
+    if (!profile) return
+    const key = `${profile.id}:${endDate}`
+    if (targetRequest.current === key) return
+    targetRequest.current = key
+    void nutritionTargetService.getOrCreate(profile.id, endDate).catch((error) => { targetRequest.current = undefined; reportTechnicalError('Progress nutrition target create', error) })
+  }, [profile, endDate])
 
   const remove = async () => {
     if (!pendingDelete) return
@@ -52,21 +74,38 @@ export function ProgressPage() {
   }
 
   return <div className="page-content progress-page">
-    <PageHeader eyebrow="ÖLÇÜM GEÇMİŞİ" title="İlerleme" action={<button className="secondary-button icon-command" onClick={() => setEditor({})}><Plus size={18} /> Ekle</button>} />
+    <PageHeader eyebrow="ÖLÇÜM GEÇMİŞİ" title="İlerleme" action={<button className="secondary-button icon-command" onClick={() => category === 'nutrition' ? navigate('/nutrition') : setEditor({})}><Plus size={18} /> Ekle</button>} />
     <div className="progress-category-tabs" role="tablist" aria-label="İlerleme kategorisi">
       <button role="tab" aria-selected={category === 'weight'} className={category === 'weight' ? 'active' : ''} onClick={() => setCategory('weight')}><Scale size={18} /> Kilo</button>
       <button role="tab" aria-selected={category === 'waist'} className={category === 'waist' ? 'active' : ''} onClick={() => setCategory('waist')}><Ruler size={18} /> Bel</button>
       <button role="tab" aria-selected={category === 'steps'} className={category === 'steps' ? 'active' : ''} onClick={() => setCategory('steps')}><Footprints size={18} /> Aktivite</button>
+      <button role="tab" aria-selected={category === 'nutrition'} className={category === 'nutrition' ? 'active' : ''} onClick={() => setCategory('nutrition')}><Apple size={18} /> Beslenme</button>
     </div>
     <div className="range-control" aria-label="Tarih aralığı">{PROGRESS_RANGES.map((days) => <button key={days} className={range === days ? 'active' : ''} onClick={() => setRange(days)}>Son {days} Gün</button>)}</div>
 
     {category === 'weight' && <WeightProgress data={data?.weight} target={profile?.targetWeightKg} onAdd={() => setEditor({ kind: 'weight' })} onEdit={(record) => setEditor({ kind: 'weight', record })} onDelete={(record) => setPendingDelete({ kind: 'weight', record })} />}
     {category === 'waist' && <WaistProgress data={data?.waist} onAdd={() => setEditor({ kind: 'waist' })} onEdit={(record) => setEditor({ kind: 'waist', record })} onDelete={(record) => setPendingDelete({ kind: 'waist', record })} />}
     {category === 'steps' && <StepProgress data={data?.steps} onAdd={() => setEditor({ kind: 'steps' })} onEdit={(record) => setEditor({ kind: 'steps', record })} onDelete={(record) => setPendingDelete({ kind: 'steps', record })} />}
+    {category === 'nutrition' && <NutritionProgress data={nutrition} onAdd={() => navigate('/nutrition')} />}
 
     <MeasurementSheet open={Boolean(editor)} userId={profile?.id ?? ''} initialKind={editor?.kind} record={editor?.record} onClose={() => setEditor(null)} />
     <ConfirmDialog open={Boolean(pendingDelete)} title="Kaydı sil?" message="Bu ölçüm ilerleme hesaplarından çıkarılacak." onCancel={() => setPendingDelete(null)} onConfirm={remove} />
   </div>
+}
+
+function NutritionProgress({ data, onAdd }: { data?: { target: Awaited<ReturnType<NutritionTargetService['getOrCreate']>>; days: Array<{ localDate: string; total?: Awaited<ReturnType<MealService['getDailyTotal']>> }> }; onAdd: () => void }) {
+  const recorded = data?.days.filter((day) => day.total && day.total.itemCount > 0) ?? []
+  const today = data?.days.at(-1)?.total
+  const averageEnergy = recorded.length ? recorded.reduce((sum, day) => sum + (day.total?.nutrients.energyKcal ?? 0), 0) / recorded.length : undefined
+  const averageProtein = recorded.length ? recorded.reduce((sum, day) => sum + (day.total?.nutrients.proteinG ?? 0), 0) / recorded.length : undefined
+  const maxEnergy = Math.max(data?.target?.energyKcal ?? 0, ...recorded.map((day) => day.total?.nutrients.energyKcal ?? 0), 1)
+  const maxProtein = Math.max(data?.target?.proteinG ?? 0, ...recorded.map((day) => day.total?.nutrients.proteinG ?? 0), 1)
+  return <>
+    <section className="progress-hero nutrition-progress-hero"><span>BUGÜN</span><div className="progress-value"><strong>{formatNutrition.kcal(today?.nutrients.energyKcal)}</strong><small>kcal</small></div><div className="trend-chip">{formatNutrition.grams(today?.nutrients.proteinG)} g protein</div></section>
+    <section className="progress-stat-row"><div><span>Kayıtlı gün</span><strong>{recorded.length}</strong></div><div><span>Enerji ort.</span><strong>{formatNutrition.kcal(averageEnergy)} kcal</strong></div><div><span>Protein ort.</span><strong>{formatNutrition.grams(averageProtein)} g</strong></div></section>
+    <section className="chart-section"><h2>Enerji ve protein trendi</h2>{recorded.length ? <div className="nutrition-trend-chart" role="img" aria-label="Günlük enerji ve protein çubuk grafiği"><div className="nutrition-chart-scroll">{data?.days.map((day) => <div className="nutrition-chart-day" key={day.localDate} title={`${day.localDate}: ${formatNutrition.kcal(day.total?.nutrients.energyKcal)} kcal, ${formatNutrition.grams(day.total?.nutrients.proteinG)} g protein`}><div><i className="energy" style={{ height: `${((day.total?.nutrients.energyKcal ?? 0) / maxEnergy) * 100}%` }} /><i className="protein" style={{ height: `${((day.total?.nutrients.proteinG ?? 0) / maxProtein) * 100}%` }} /></div><span>{format(parseISO(day.localDate), 'd', { locale: tr })}</span></div>)}</div><footer><span><i className="energy" /> Enerji</span><span><i className="protein" /> Protein</span></footer></div> : <div className="chart-empty"><strong>Beslenme kaydı yok</strong><p>İlk öğününü eklediğinde trend burada görünür.</p></div>}</section>
+    {!recorded.length && <section className="history-empty"><button className="secondary-button" onClick={onAdd}><Plus size={17} /> Öğün Ekle</button></section>}
+  </>
 }
 
 function WeightProgress({ data, target, onAdd, onEdit, onDelete }: { data?: Awaited<ReturnType<MeasurementDashboardService['getProgress']>>['weight']; target?: number; onAdd: () => void; onEdit: (record: WeightRecord) => void; onDelete: (record: WeightRecord) => void }) {

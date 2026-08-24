@@ -60,11 +60,13 @@ export class WorkoutService {
     const plan = await this.workouts.getActivePlan(userId)
     if (!plan?.validationResult?.valid) return undefined
     const days = await this.workouts.listDays(plan.id)
+    if (days.length !== plan.daysPerWeek) return undefined
     const allExercises = await this.exercises.list()
     const dayViews = await Promise.all(days.map(async (day) => {
       const targets = await this.workouts.listDayExercises(day.id)
       return { day, targets, exercises: targets.map((target) => allExercises.find((exercise) => exercise.id === target.exerciseId)).filter(Boolean) }
     }))
+    if (dayViews.some((day) => day.targets.length === 0 || day.targets.length !== day.exercises.length)) return undefined
     return { plan, days: dayViews }
   }
 

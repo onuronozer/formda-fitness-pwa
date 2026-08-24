@@ -13,6 +13,6 @@ export function createEntityMetadata(now = new Date().toISOString()): EntityMeta
     createdAt: now,
     updatedAt: now,
     version: 1,
-    schemaVersion: 6,
+    schemaVersion: 7,
   }
 }

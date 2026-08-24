@@ -63,6 +63,18 @@ describe('Firestore owner rules emulator matrix', () => {
     await assertFails(setDoc(path(() => context('user-a', false).firestore(), 'user-a'), record('user-a')))
   })
 
+  it('allows nutrition records and denies unknown entity types', async () => {
+    const database = () => context('user-a').firestore()
+    await assertSucceeds(setDoc(
+      path(database, 'user-a', 'meals__meal-a'),
+      record('user-a', { id: 'meals__meal-a', entityType: 'meals', entityId: 'meal-a', payload: { id: 'meal-a', userId: LOCAL_USER_ID, version: 1 } }),
+    ))
+    await assertFails(setDoc(
+      path(database, 'user-a', 'unknown__record-a'),
+      record('user-a', { id: 'unknown__record-a', entityType: 'unknownRecords', entityId: 'record-a' }),
+    ))
+  })
+
   it('denies entity type, entity id and local owner mutation', async () => {
     await seed('user-a')
     const target = path(() => context('user-a').firestore(), 'user-a')

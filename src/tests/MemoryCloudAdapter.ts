@@ -10,6 +10,7 @@ export class MemoryCloudAdapter implements CloudAdapter {
   resetEmails: string[] = []
   reauthenticated = false
   accountDeleted = false
+  private readonly accountUids = new Map<string, string>()
   private listener?: (identity?: AuthIdentity) => void
 
   constructor(identity: AuthIdentity = { uid: 'cloud-user-a', email: 'user@example.test', emailVerified: true }, configured = true) {
@@ -18,10 +19,14 @@ export class MemoryCloudAdapter implements CloudAdapter {
   }
 
   async onAuthStateChanged(callback: (identity?: AuthIdentity) => void) { this.listener = callback; callback(this.identity); return () => { this.listener = undefined } }
-  async createAccount(email: string) { this.identity = { uid: `uid-${email}`, email, emailVerified: false }; this.listener?.(this.identity); return this.identity }
+  async createAccount(email: string) {
+    const uid = `uid-${email}`
+    this.accountUids.set(email, uid)
+    this.identity = { uid, email, emailVerified: false }; this.listener?.(this.identity); return this.identity
+  }
   async signIn(email: string, password: string) {
     if (password === 'invalid') { const cause = new Error('invalid') as Error & { code: string }; cause.code = 'auth/invalid-credential'; throw cause }
-    this.identity = { uid: email.startsWith('b@') ? 'cloud-user-b' : 'cloud-user-a', email, emailVerified: true }
+    this.identity = { uid: this.accountUids.get(email) ?? (email.startsWith('b@') ? 'cloud-user-b' : 'cloud-user-a'), email, emailVerified: true }
     this.listener?.(this.identity); return this.identity
   }
   async signOut() { this.identity = undefined; this.listener?.(undefined) }

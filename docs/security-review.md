@@ -8,6 +8,7 @@
 - Create/update yalnız `email_verified=true` token ile mümkündür.
 - Unknown Firestore paths default-deny'dır.
 - Static seed data cloud user documents içine yazılmaz.
+- Firestore envelope `entityType` alanı sync katmanıyla aynı explicit allowlist'e tabidir; bilinmeyen entity türleri reddedilir.
 
 ## Account isolation
 
@@ -33,10 +34,12 @@
 - Development logu yalnız context, error name ve kısa code içerir.
 - Email, ölçüm, tansiyon, semptom ve condition payload'ları loglanmaz.
 - Backup Auth token, UID/e-posta cloud bağlantısı, service account veya private key içermez.
+- Meal adı ve nutrition snapshot payload'ları production loglarına yazılmaz.
 
 ## Residual boundaries
 
 - Client-side encryption at rest yoktur; browser/platform storage ve Firebase kontrolleri kullanılır.
 - GitHub Pages custom security header ekleyemez.
-- App Check client entegrasyonu hazırdır; enforcement production telemetry sonrası console'dan açılmalıdır.
+- App Check client entegrasyonu ve environment guard hazırdır; production registration/monitoring/enforcement henüz yapılandırılmamıştır.
+- CI WIF-ready'dir; production repository variables oluşturulana kadar dar yetkili JSON key fallback'i kalır.
 - `CLINICAL_REVIEW_PENDING` değişmemiştir ve public clinical release onayı değildir.

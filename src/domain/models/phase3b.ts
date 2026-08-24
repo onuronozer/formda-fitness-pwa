@@ -91,6 +91,7 @@ export type SyncEntityType =
   | 'dailyHealthChecks' | 'dailyHealthResponses' | 'preWorkoutChecks'
   | 'workoutPlans' | 'workoutDays' | 'workoutExercises' | 'workoutSessions' | 'workoutSets'
   | 'waterRecords' | 'dailyHydrationTargets' | 'dailyGoalSettings' | 'dailyGoalPlans' | 'cardioSessions'
+  | 'foods' | 'recipes' | 'recipeIngredients' | 'favoriteFoods' | 'meals' | 'mealItems' | 'dailyNutritionTargets' | 'nutritionSettings'
 
 export interface SyncOutboxEvent extends EntityMetadata {
   userId: string

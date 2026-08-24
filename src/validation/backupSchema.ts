@@ -4,8 +4,10 @@ import { stepRecordSchema, waistRecordSchema, weightRecordSchema } from './measu
 import { dailyHealthCheckSchema, dailyHealthResponseSchema, preWorkoutCheckSchema, workoutDaySchema, workoutExerciseSchema, workoutPlanSchema, workoutSessionSchema, workoutSetSchema } from './phase3Schemas'
 import { entityMetadataSchema, userProfileSchema } from './profileSchemas'
 import { cardioSessionSchema, cloudSyncPreferenceSchema, dailyGoalPlanSchema, dailyGoalSettingsSchema, dailyHydrationTargetSchema, waterRecordSchema } from './phase3bSchemas'
+import { dailyNutritionTargetSchema, favoriteFoodSchema, foodSchema, mealItemSchema, mealSchema, nutritionSettingsSchema, recipeIngredientSchema, recipeSchema } from './nutritionSchemas'
 
-export const BACKUP_SCHEMA_VERSION = 5 as const
+export const BACKUP_SCHEMA_VERSION = 6 as const
+export const PHASE_THREE_B_BACKUP_SCHEMA_VERSION = 5 as const
 export const PHASE_THREE_BACKUP_SCHEMA_VERSION = 4 as const
 export const PHASE_TWO_BACKUP_SCHEMA_VERSION = 3 as const
 export const LEGACY_BACKUP_SCHEMA_VERSION = 2 as const
@@ -16,16 +18,28 @@ const phaseTwoUserData = {
   weightRecords: z.array(weightRecordSchema), waistRecords: z.array(waistRecordSchema), stepRecords: z.array(stepRecordSchema),
 }
 
+const phaseThreeBUserData = {
+  ...phaseTwoUserData,
+  dailyHealthChecks: z.array(dailyHealthCheckSchema), dailyHealthResponses: z.array(dailyHealthResponseSchema), preWorkoutChecks: z.array(preWorkoutCheckSchema),
+  workoutPlans: z.array(workoutPlanSchema), workoutDays: z.array(workoutDaySchema), workoutExercises: z.array(workoutExerciseSchema),
+  workoutSessions: z.array(workoutSessionSchema), workoutSets: z.array(workoutSetSchema),
+  waterRecords: z.array(waterRecordSchema), dailyHydrationTargets: z.array(dailyHydrationTargetSchema), dailyGoalSettings: z.array(dailyGoalSettingsSchema),
+  dailyGoalPlans: z.array(dailyGoalPlanSchema), cardioSessions: z.array(cardioSessionSchema), cloudSyncPreferences: z.array(cloudSyncPreferenceSchema),
+}
+
+export const phaseThreeBBackupPayloadSchema = z.object({
+  schemaVersion: z.literal(PHASE_THREE_B_BACKUP_SCHEMA_VERSION), exportedAt: z.string().datetime({ offset: true }), appVersion: z.string().min(1),
+  seedManifest: z.object({ exercises: z.number().int().positive() }),
+  userData: z.object(phaseThreeBUserData),
+})
+
 export const backupPayloadSchema = z.object({
   schemaVersion: z.literal(BACKUP_SCHEMA_VERSION), exportedAt: z.string().datetime({ offset: true }), appVersion: z.string().min(1),
-  seedManifest: z.object({ exercises: z.number().int().positive() }),
+  seedManifest: z.object({ exercises: z.number().int().positive(), foods: z.number().int().positive(), recipes: z.number().int().positive() }),
   userData: z.object({
-    ...phaseTwoUserData,
-    dailyHealthChecks: z.array(dailyHealthCheckSchema), dailyHealthResponses: z.array(dailyHealthResponseSchema), preWorkoutChecks: z.array(preWorkoutCheckSchema),
-    workoutPlans: z.array(workoutPlanSchema), workoutDays: z.array(workoutDaySchema), workoutExercises: z.array(workoutExerciseSchema),
-    workoutSessions: z.array(workoutSessionSchema), workoutSets: z.array(workoutSetSchema),
-    waterRecords: z.array(waterRecordSchema), dailyHydrationTargets: z.array(dailyHydrationTargetSchema), dailyGoalSettings: z.array(dailyGoalSettingsSchema),
-    dailyGoalPlans: z.array(dailyGoalPlanSchema), cardioSessions: z.array(cardioSessionSchema), cloudSyncPreferences: z.array(cloudSyncPreferenceSchema),
+    ...phaseThreeBUserData,
+    foods: z.array(foodSchema), recipes: z.array(recipeSchema), recipeIngredients: z.array(recipeIngredientSchema), favoriteFoods: z.array(favoriteFoodSchema),
+    meals: z.array(mealSchema), mealItems: z.array(mealItemSchema), dailyNutritionTargets: z.array(dailyNutritionTargetSchema), nutritionSettings: z.array(nutritionSettingsSchema),
   }),
 })
 
@@ -59,8 +73,9 @@ export const legacyBackupPayloadSchema = z.object({
   userData: z.object({ ...legacySharedUserData, weightRecords: z.array(legacyWeightSchema), waistRecords: z.array(legacyWaistSchema), stepRecords: z.array(legacyStepSchema) }),
 })
 
-export const backupImportSchema = z.union([backupPayloadSchema, phaseThreeBackupPayloadSchema, phaseTwoBackupPayloadSchema, legacyBackupPayloadSchema])
+export const backupImportSchema = z.union([backupPayloadSchema, phaseThreeBBackupPayloadSchema, phaseThreeBackupPayloadSchema, phaseTwoBackupPayloadSchema, legacyBackupPayloadSchema])
 export type BackupPayload = z.infer<typeof backupPayloadSchema>
+export type PhaseThreeBBackupPayload = z.infer<typeof phaseThreeBBackupPayloadSchema>
 export type PhaseThreeBackupPayload = z.infer<typeof phaseThreeBackupPayloadSchema>
 export type PhaseTwoBackupPayload = z.infer<typeof phaseTwoBackupPayloadSchema>
 export type LegacyBackupPayload = z.infer<typeof legacyBackupPayloadSchema>

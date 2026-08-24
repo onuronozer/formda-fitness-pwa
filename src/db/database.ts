@@ -13,13 +13,21 @@ import type {
   Exercise,
   ExerciseHealthConsideration,
   ExerciseMedia,
+  FavoriteFood,
+  Food,
   HealthCondition,
   HealthEvaluationLog,
   HealthProfile,
   Muscle,
   IntervalProtocol,
   LocalWorkspace,
+  Meal,
+  MealItem,
+  DailyNutritionTarget,
+  NutritionSettings,
   PreWorkoutCheck,
+  Recipe,
+  RecipeIngredient,
   SeedVersion,
   StepRecord,
   ShortcutActionReceipt,
@@ -36,7 +44,7 @@ import type {
   WaterRecord,
 } from '../domain/models'
 import { toLocalDate } from '../utils/localDate'
-import { DATABASE_NAME, LEGACY_DATABASE_NAME, versionFiveStores, versionFourStores, versionOneStores, versionSixStores, versionThreeStores, versionTwoStores } from './schema'
+import { DATABASE_NAME, LEGACY_DATABASE_NAME, versionFiveStores, versionFourStores, versionOneStores, versionSevenStores, versionSixStores, versionThreeStores, versionTwoStores } from './schema'
 
 export class FormdaDatabase extends Dexie {
   userProfiles!: EntityTable<UserProfile, 'id'>
@@ -73,6 +81,14 @@ export class FormdaDatabase extends Dexie {
   cloudSyncPreferences!: EntityTable<CloudSyncPreference, 'id'>
   localWorkspaces!: EntityTable<LocalWorkspace, 'id'>
   syncConflictAudits!: EntityTable<SyncConflictAudit, 'id'>
+  foods!: EntityTable<Food, 'id'>
+  recipes!: EntityTable<Recipe, 'id'>
+  recipeIngredients!: EntityTable<RecipeIngredient, 'id'>
+  favoriteFoods!: EntityTable<FavoriteFood, 'id'>
+  meals!: EntityTable<Meal, 'id'>
+  mealItems!: EntityTable<MealItem, 'id'>
+  dailyNutritionTargets!: EntityTable<DailyNutritionTarget, 'id'>
+  nutritionSettings!: EntityTable<NutritionSettings, 'id'>
 
   constructor(name = DATABASE_NAME) {
     super(name)
@@ -178,6 +194,16 @@ export class FormdaDatabase extends Dexie {
       for (const tableName of tables) {
         await transaction.table(tableName).toCollection().modify((record) => {
           record.schemaVersion = 6
+          record.updatedAt ??= now
+        })
+      }
+    })
+    this.version(7).stores(versionSevenStores).upgrade(async (transaction) => {
+      const now = new Date().toISOString()
+      const tables = ['userProfiles', 'healthProfiles', 'healthConditions', 'conditionAnswers', 'weightRecords', 'waistRecords', 'stepRecords', 'healthEvaluationLogs', 'dailyHealthChecks', 'dailyHealthResponses', 'preWorkoutChecks', 'workoutPlans', 'workoutDays', 'workoutExercises', 'workoutSessions', 'workoutSets', 'waterRecords', 'dailyHydrationTargets', 'dailyGoalSettings', 'dailyGoalPlans', 'cardioSessions', 'shortcutActionReceipts', 'syncOutbox', 'cloudSyncPreferences', 'localWorkspaces', 'syncConflictAudits']
+      for (const tableName of tables) {
+        await transaction.table(tableName).toCollection().modify((record) => {
+          record.schemaVersion = 7
           record.updatedAt ??= now
         })
       }

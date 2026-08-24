@@ -18,4 +18,10 @@ const missing = required.filter((name) => !process.env[name]?.trim())
 if (missing.length) throw new Error(`Missing production Firebase variables: ${missing.join(', ')}`)
 if (process.env.VITE_FIREBASE_PROJECT_ID !== process.env.VITE_FIREBASE_EXPECTED_PROJECT_ID) throw new Error('Firebase project ID does not match the production guard value.')
 
-process.stdout.write('Firebase production guard: validated production configuration.\n')
+const appCheckStatus = process.env.VITE_FIREBASE_APPCHECK_STATUS || 'not_configured'
+if (!['not_configured', 'monitoring', 'enforced'].includes(appCheckStatus)) throw new Error('VITE_FIREBASE_APPCHECK_STATUS must be not_configured, monitoring or enforced.')
+if (appCheckStatus !== 'not_configured' && !process.env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim()) {
+  throw new Error(`App Check ${appCheckStatus} rollout requires VITE_FIREBASE_APPCHECK_SITE_KEY.`)
+}
+
+process.stdout.write(`Firebase production guard: validated production configuration; App Check=${appCheckStatus}.\n`)

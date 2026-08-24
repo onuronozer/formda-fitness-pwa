@@ -33,25 +33,20 @@ export class AccountService {
     await this.reconciliation
   }
 
-  async createAccount(email: string, password: string, localUserId?: string) {
+  async createAccount(email: string, password: string) {
     return this.withOperation(async () => {
       const identity = await this.auth.createAccount(email, password)
-      const resolution = await this.workspaces.resolveAuthenticated(identity, localUserId)
-      if (resolution.workspace.localUserId) await this.sync.enable(resolution.workspace.localUserId, identity, resolution.workspace.id).catch((cause) => {
-        if (!(cause instanceof Error && cause.message === 'EMAIL_VERIFICATION_REQUIRED')) throw cause
-      })
+      const resolution = await this.workspaces.resolveAuthenticated(identity)
       return { identity, workspace: resolution.workspace }
     })
   }
 
-  async signIn(email: string, password: string, localUserId?: string) {
+  async signIn(email: string, password: string) {
     return this.withOperation(async () => {
       const identity = await this.auth.signIn(email, password)
-      const cloudOwner = await this.sync.inspectCloudOwner(identity)
-      const safeLinkUserId = identity.emailVerified && (!cloudOwner || cloudOwner === localUserId) ? localUserId : undefined
-      const resolution = await this.workspaces.resolveAuthenticated(identity, safeLinkUserId)
+      const resolution = await this.workspaces.resolveAuthenticated(identity)
       const bootstrap = await this.sync.bootstrap(resolution.workspace, identity)
-      return { identity, workspace: bootstrap.workspace, switchedToExistingCloudData: Boolean(localUserId && cloudOwner && cloudOwner !== localUserId) }
+      return { identity, workspace: bootstrap.workspace, switchedToExistingCloudData: false }
     })
   }
 

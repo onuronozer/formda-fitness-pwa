@@ -59,6 +59,8 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_EXPECTED_PROJECT_ID: ${{ vars.VITE_FIREBASE_EXPECTED_PROJECT_ID }}
+          VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ vars.VITE_FIREBASE_APPCHECK_SITE_KEY }}
+          VITE_FIREBASE_APPCHECK_STATUS: ${{ vars.VITE_FIREBASE_APPCHECK_STATUS || 'not_configured' }}
           VITE_FIREBASE_USE_EMULATOR: 'false'
         run: npm run validate:firebase-env
 
@@ -82,19 +84,33 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_EXPECTED_PROJECT_ID: ${{ vars.VITE_FIREBASE_EXPECTED_PROJECT_ID }}
           VITE_FIREBASE_APPCHECK_SITE_KEY: ${{ vars.VITE_FIREBASE_APPCHECK_SITE_KEY }}
+          VITE_FIREBASE_APPCHECK_STATUS: ${{ vars.VITE_FIREBASE_APPCHECK_STATUS || 'not_configured' }}
           VITE_FIREBASE_USE_EMULATOR: 'false'
         run: npm run build
 
-      - name: Deploy production Firestore rules and indexes
-        if: ${{ vars.FIREBASE_DEPLOY_MODE == 'enabled' }}
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        if: ${{ vars.FIREBASE_DEPLOY_MODE == 'enabled' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' }}
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Configure legacy Firebase credential fallback
+        if: ${{ vars.FIREBASE_DEPLOY_MODE == 'enabled' && (vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || vars.GCP_DEPLOY_SERVICE_ACCOUNT == '') }}
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
         shell: bash
         run: |
           test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy production Firestore rules and indexes
+        if: ${{ vars.FIREBASE_DEPLOY_MODE == 'enabled' }}
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+        shell: bash
+        run: |
           npx firebase-tools deploy --only firestore --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       - name: Add SPA fallback
