@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "formda-fitness-dev-onur",
+    "development": "formda-fitness-dev-onur",
+    "production": "formda-fitness-prod-onur"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "formda-fitness-pwa",
+  "private": true,
+  "version": "0.4.1",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "test:firebase:vitest": "vitest run --config vitest.firebase.config.ts",
+    "test:firebase": "firebase emulators:exec --project demo-formda-fitness --only auth,firestore \"npm run test:firebase:vitest\"",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "validate:firebase-env": "node scripts/validate-firebase-environment.mjs"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "dexie": "^4.2.0",
+    "dexie-react-hooks": "^4.2.0",
+    "firebase": "^12.18.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.8.2",
+    "zod": "^4.1.5",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "eslint": "^9.34.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "fake-indexeddb": "^6.2.2",
+    "firebase-tools": "^15.28.1",
+    "globals": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.41.0",
+    "vite": "^7.1.3",
+    "vite-plugin-pwa": "^1.0.2",
+    "vitest": "^3.2.4"
+  }
+}

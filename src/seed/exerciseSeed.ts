@@ -1,0 +1,107 @@
+import type { Equipment, EvidenceReference, Exercise, ExerciseHealthConsideration, ExerciseMedia, Muscle } from '../domain/models'
+
+export const EXERCISE_SEED_VERSION = 1
+const stamp = '2026-08-24T00:00:00.000Z'
+const metadata = (id: string) => ({ id, createdAt: stamp, updatedAt: stamp, version: 1, schemaVersion: 4 })
+
+const muscleNames: Array<[string, string]> = [
+  ['quadriceps', 'Quadriceps'], ['hamstrings', 'Hamstrings'], ['gluteus_maximus', 'Gluteus maximus'], ['adductors', 'Adductors'],
+  ['calves', 'Calves'], ['pectoralis_major', 'Pectoralis major'], ['latissimus_dorsi', 'Latissimus dorsi'], ['trapezius', 'Trapezius'],
+  ['rhomboids', 'Rhomboids'], ['anterior_deltoid', 'Anterior deltoid'], ['lateral_deltoid', 'Lateral deltoid'],
+  ['posterior_deltoid', 'Posterior deltoid'], ['biceps', 'Biceps'], ['triceps', 'Triceps'], ['forearms', 'Forearms'],
+  ['trunk_stabilizers', 'Trunk stabilizers'],
+]
+export const muscleSeed: Muscle[] = muscleNames.map(([slug, name]) => ({ ...metadata(`muscle-${slug}`), slug, name, active: true, seedVersion: EXERCISE_SEED_VERSION }))
+
+const equipmentNames: Array<[string, string]> = [
+  ['bodyweight', 'Vücut ağırlığı'], ['dumbbell', 'Dambıl'], ['barbell', 'Barbell'], ['kettlebell', 'Kettlebell'], ['cable', 'Kablo'],
+  ['machine', 'Makine'], ['resistance_band', 'Direnç bandı'], ['bench', 'Bench'], ['pullup_bar', 'Barfiks barı'],
+]
+export const equipmentSeed: Equipment[] = equipmentNames.map(([slug, name]) => ({ ...metadata(`equipment-${slug}`), slug, name, active: true, seedVersion: EXERCISE_SEED_VERSION }))
+
+const m = (slug: string) => `muscle-${slug}`
+const e = (slug: string) => `equipment-${slug}`
+const x = (slug: string) => `exercise-${slug}`
+
+const technique = {
+  squat: ['Ayaklarını dengeli yerleştir.', 'Kalça ve dizleri birlikte bük.', 'Kontrollü alçal ve zemini iterek yüksel.'],
+  hinge: ['Kalçayı geriye gönder.', 'Omurgayı nötr ve yükü gövdeye yakın tut.', 'Kalçayı sıkarak kontrollü doğrul.'],
+  lunge: ['Gövdeyi uzun tut.', 'Ön ayağın tamamıyla yere bas.', 'Kontrollü alçal ve başlangıca dön.'],
+  push: ['Kürek kemiklerini dengeli tut.', 'Dirsekleri kontrollü bük.', 'Yükü savurmadan it.'],
+  pull: ['Göğsü açık tut.', 'Dirsekleri gövdeye doğru çek.', 'Dönüşü kontrollü tamamla.'],
+  arms: ['Üst kolu sabit tut.', 'Tam kontrolle bük veya aç.', 'Ağırlığı sallama.'],
+  core: ['Nefesi tutmadan gövdeyi sabitle.', 'Bel pozisyonunu koru.', 'Kalite bozulmadan seti bitir.'],
+  cardio: ['Rahat bir ritimle başla.', 'Duruşunu uzun tut.', 'Temponu kontrollü artır.'],
+} as const
+const mistakes = {
+  squat: ['Topukları kaldırma.', 'Dizleri kontrolsüz içeri düşürme.'], hinge: ['Belden yuvarlanma.', 'Yükü gövdeden uzaklaştırma.'],
+  lunge: ['Adımı çok dar tutma.', 'Dengeyi aceleyle kaybetme.'], push: ['Omuzları kulaklara çekme.', 'Tekrarı aceleye getirme.'],
+  pull: ['Gövdeyi savurma.', 'Omuzları öne düşürme.'], arms: ['Dirsekleri gezdirme.', 'Momentum kullanma.'],
+  core: ['Bel kontrolünü kaybetme.', 'Nefesi uzun süre tutma.'], cardio: ['Bir anda yüksek tempoya çıkma.', 'Adımları kontrolsüz uzatma.'],
+} as const
+
+type SeedExercise = Omit<Exercise, 'createdAt' | 'updatedAt' | 'version' | 'schemaVersion' | 'seedVersion' | 'active' | 'instructions' | 'commonMistakes'> & { tech: keyof typeof technique }
+const makeExercise = (input: SeedExercise): Exercise => ({
+  ...metadata(input.id), ...input, instructions: [...technique[input.tech]], commonMistakes: [...mistakes[input.tech]], active: true,
+  seedVersion: EXERCISE_SEED_VERSION,
+})
+
+export const exerciseSeed: Exercise[] = [
+  makeExercise({ id: x('bodyweight-squat'), name: 'Bodyweight Squat', slug: 'bodyweight-squat', movementPattern: 'squat', difficulty: 'beginner', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('quadriceps'), m('gluteus_maximus')], secondaryMuscleIds: [m('adductors'), m('trunk_stabilizers')], progressionExerciseIds: [x('goblet-squat')], regressionExerciseIds: [x('chair-squat')], substitutionExerciseIds: [x('leg-press')], unilateral: false, tech: 'squat' }),
+  makeExercise({ id: x('chair-squat'), name: 'Chair Squat', slug: 'chair-squat', movementPattern: 'squat', difficulty: 'beginner', equipmentIds: [e('bodyweight'), e('bench')], primaryMuscleIds: [m('quadriceps'), m('gluteus_maximus')], secondaryMuscleIds: [m('trunk_stabilizers')], progressionExerciseIds: [x('bodyweight-squat')], regressionExerciseIds: [], substitutionExerciseIds: [x('leg-press')], unilateral: false, tech: 'squat' }),
+  makeExercise({ id: x('goblet-squat'), name: 'Goblet Squat', slug: 'goblet-squat', movementPattern: 'squat', difficulty: 'beginner', equipmentIds: [e('dumbbell')], primaryMuscleIds: [m('quadriceps'), m('gluteus_maximus')], secondaryMuscleIds: [m('adductors'), m('trunk_stabilizers')], progressionExerciseIds: [], regressionExerciseIds: [x('bodyweight-squat')], substitutionExerciseIds: [x('leg-press')], unilateral: false, tech: 'squat' }),
+  makeExercise({ id: x('split-squat'), name: 'Split Squat', slug: 'split-squat', movementPattern: 'lunge', difficulty: 'intermediate', equipmentIds: [e('bodyweight'), e('dumbbell')], primaryMuscleIds: [m('quadriceps'), m('gluteus_maximus')], secondaryMuscleIds: [m('adductors'), m('trunk_stabilizers')], progressionExerciseIds: [], regressionExerciseIds: [x('reverse-lunge')], substitutionExerciseIds: [x('leg-press')], unilateral: true, tech: 'lunge' }),
+  makeExercise({ id: x('reverse-lunge'), name: 'Reverse Lunge', slug: 'reverse-lunge', movementPattern: 'lunge', difficulty: 'beginner', equipmentIds: [e('bodyweight'), e('dumbbell')], primaryMuscleIds: [m('quadriceps'), m('gluteus_maximus')], secondaryMuscleIds: [m('hamstrings'), m('trunk_stabilizers')], progressionExerciseIds: [x('split-squat')], regressionExerciseIds: [x('chair-squat')], substitutionExerciseIds: [x('leg-press')], unilateral: true, tech: 'lunge' }),
+  makeExercise({ id: x('romanian-deadlift'), name: 'Romanian Deadlift', slug: 'romanian-deadlift', movementPattern: 'hinge', difficulty: 'intermediate', equipmentIds: [e('dumbbell'), e('barbell')], primaryMuscleIds: [m('hamstrings'), m('gluteus_maximus')], secondaryMuscleIds: [m('trunk_stabilizers'), m('forearms')], progressionExerciseIds: [], regressionExerciseIds: [x('glute-bridge')], substitutionExerciseIds: [x('leg-curl'), x('hip-thrust')], unilateral: false, tech: 'hinge' }),
+  makeExercise({ id: x('hip-thrust'), name: 'Hip Thrust', slug: 'hip-thrust', movementPattern: 'hip_extension', difficulty: 'intermediate', equipmentIds: [e('bodyweight'), e('barbell'), e('bench')], primaryMuscleIds: [m('gluteus_maximus')], secondaryMuscleIds: [m('hamstrings'), m('trunk_stabilizers')], progressionExerciseIds: [], regressionExerciseIds: [x('glute-bridge')], substitutionExerciseIds: [x('romanian-deadlift')], unilateral: false, tech: 'hinge' }),
+  makeExercise({ id: x('glute-bridge'), name: 'Glute Bridge', slug: 'glute-bridge', movementPattern: 'hip_extension', difficulty: 'beginner', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('gluteus_maximus')], secondaryMuscleIds: [m('hamstrings'), m('trunk_stabilizers')], progressionExerciseIds: [x('hip-thrust')], regressionExerciseIds: [], substitutionExerciseIds: [x('leg-curl')], unilateral: false, tech: 'hinge' }),
+  makeExercise({ id: x('leg-press'), name: 'Leg Press', slug: 'leg-press', movementPattern: 'squat', difficulty: 'beginner', equipmentIds: [e('machine')], primaryMuscleIds: [m('quadriceps'), m('gluteus_maximus')], secondaryMuscleIds: [m('hamstrings')], progressionExerciseIds: [x('goblet-squat')], regressionExerciseIds: [], substitutionExerciseIds: [x('chair-squat')], unilateral: false, tech: 'squat' }),
+  makeExercise({ id: x('leg-extension'), name: 'Leg Extension', slug: 'leg-extension', movementPattern: 'squat', difficulty: 'beginner', equipmentIds: [e('machine')], primaryMuscleIds: [m('quadriceps')], secondaryMuscleIds: [], progressionExerciseIds: [], regressionExerciseIds: [], substitutionExerciseIds: [x('bodyweight-squat')], unilateral: false, tech: 'squat' }),
+  makeExercise({ id: x('leg-curl'), name: 'Leg Curl', slug: 'leg-curl', movementPattern: 'hinge', difficulty: 'beginner', equipmentIds: [e('machine')], primaryMuscleIds: [m('hamstrings')], secondaryMuscleIds: [m('calves')], progressionExerciseIds: [x('romanian-deadlift')], regressionExerciseIds: [], substitutionExerciseIds: [x('glute-bridge')], unilateral: false, tech: 'hinge' }),
+  makeExercise({ id: x('calf-raise'), name: 'Calf Raise', slug: 'calf-raise', movementPattern: 'calf_raise', difficulty: 'beginner', equipmentIds: [e('bodyweight'), e('dumbbell'), e('machine')], primaryMuscleIds: [m('calves')], secondaryMuscleIds: [], progressionExerciseIds: [], regressionExerciseIds: [], substitutionExerciseIds: [], unilateral: false, tech: 'squat' }),
+  makeExercise({ id: x('push-up'), name: 'Push-Up', slug: 'push-up', movementPattern: 'horizontal_push', difficulty: 'intermediate', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('pectoralis_major'), m('triceps')], secondaryMuscleIds: [m('anterior_deltoid'), m('trunk_stabilizers')], progressionExerciseIds: [], regressionExerciseIds: [x('assisted-push-up')], substitutionExerciseIds: [x('dumbbell-bench-press')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('assisted-push-up'), name: 'Assisted Push-Up', slug: 'assisted-push-up', movementPattern: 'horizontal_push', difficulty: 'beginner', equipmentIds: [e('bodyweight'), e('bench')], primaryMuscleIds: [m('pectoralis_major'), m('triceps')], secondaryMuscleIds: [m('anterior_deltoid')], progressionExerciseIds: [x('push-up')], regressionExerciseIds: [], substitutionExerciseIds: [x('machine-chest-press')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('dumbbell-bench-press'), name: 'Dumbbell Bench Press', slug: 'dumbbell-bench-press', movementPattern: 'horizontal_push', difficulty: 'beginner', equipmentIds: [e('dumbbell'), e('bench')], primaryMuscleIds: [m('pectoralis_major'), m('triceps')], secondaryMuscleIds: [m('anterior_deltoid')], progressionExerciseIds: [x('bench-press')], regressionExerciseIds: [x('assisted-push-up')], substitutionExerciseIds: [x('machine-chest-press')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('bench-press'), name: 'Bench Press', slug: 'bench-press', movementPattern: 'horizontal_push', difficulty: 'intermediate', equipmentIds: [e('barbell'), e('bench')], primaryMuscleIds: [m('pectoralis_major'), m('triceps')], secondaryMuscleIds: [m('anterior_deltoid')], progressionExerciseIds: [], regressionExerciseIds: [x('dumbbell-bench-press')], substitutionExerciseIds: [x('machine-chest-press')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('machine-chest-press'), name: 'Machine Chest Press', slug: 'machine-chest-press', movementPattern: 'horizontal_push', difficulty: 'beginner', equipmentIds: [e('machine')], primaryMuscleIds: [m('pectoralis_major'), m('triceps')], secondaryMuscleIds: [m('anterior_deltoid')], progressionExerciseIds: [x('dumbbell-bench-press')], regressionExerciseIds: [], substitutionExerciseIds: [x('assisted-push-up')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('dumbbell-shoulder-press'), name: 'Dumbbell Shoulder Press', slug: 'dumbbell-shoulder-press', movementPattern: 'vertical_push', difficulty: 'intermediate', equipmentIds: [e('dumbbell')], primaryMuscleIds: [m('anterior_deltoid'), m('triceps')], secondaryMuscleIds: [m('lateral_deltoid'), m('trunk_stabilizers')], progressionExerciseIds: [], regressionExerciseIds: [x('machine-shoulder-press')], substitutionExerciseIds: [x('lateral-raise')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('machine-shoulder-press'), name: 'Machine Shoulder Press', slug: 'machine-shoulder-press', movementPattern: 'vertical_push', difficulty: 'beginner', equipmentIds: [e('machine')], primaryMuscleIds: [m('anterior_deltoid'), m('triceps')], secondaryMuscleIds: [m('lateral_deltoid')], progressionExerciseIds: [x('dumbbell-shoulder-press')], regressionExerciseIds: [], substitutionExerciseIds: [x('lateral-raise')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('lateral-raise'), name: 'Lateral Raise', slug: 'lateral-raise', movementPattern: 'shoulder_abduction', difficulty: 'beginner', equipmentIds: [e('dumbbell'), e('cable')], primaryMuscleIds: [m('lateral_deltoid')], secondaryMuscleIds: [m('trapezius')], progressionExerciseIds: [], regressionExerciseIds: [], substitutionExerciseIds: [x('machine-shoulder-press')], unilateral: false, tech: 'push' }),
+  makeExercise({ id: x('one-arm-dumbbell-row'), name: 'One-Arm Dumbbell Row', slug: 'one-arm-dumbbell-row', movementPattern: 'horizontal_pull', difficulty: 'beginner', equipmentIds: [e('dumbbell'), e('bench')], primaryMuscleIds: [m('latissimus_dorsi'), m('rhomboids')], secondaryMuscleIds: [m('biceps'), m('posterior_deltoid')], progressionExerciseIds: [], regressionExerciseIds: [x('machine-row')], substitutionExerciseIds: [x('seated-cable-row')], unilateral: true, tech: 'pull' }),
+  makeExercise({ id: x('seated-cable-row'), name: 'Seated Cable Row', slug: 'seated-cable-row', movementPattern: 'horizontal_pull', difficulty: 'beginner', equipmentIds: [e('cable')], primaryMuscleIds: [m('latissimus_dorsi'), m('rhomboids')], secondaryMuscleIds: [m('biceps'), m('posterior_deltoid')], progressionExerciseIds: [], regressionExerciseIds: [x('machine-row')], substitutionExerciseIds: [x('one-arm-dumbbell-row')], unilateral: false, tech: 'pull' }),
+  makeExercise({ id: x('machine-row'), name: 'Machine Row', slug: 'machine-row', movementPattern: 'horizontal_pull', difficulty: 'beginner', equipmentIds: [e('machine')], primaryMuscleIds: [m('latissimus_dorsi'), m('rhomboids')], secondaryMuscleIds: [m('biceps'), m('posterior_deltoid')], progressionExerciseIds: [x('seated-cable-row')], regressionExerciseIds: [], substitutionExerciseIds: [x('one-arm-dumbbell-row')], unilateral: false, tech: 'pull' }),
+  makeExercise({ id: x('lat-pulldown'), name: 'Lat Pulldown', slug: 'lat-pulldown', movementPattern: 'vertical_pull', difficulty: 'beginner', equipmentIds: [e('cable')], primaryMuscleIds: [m('latissimus_dorsi')], secondaryMuscleIds: [m('biceps'), m('rhomboids')], progressionExerciseIds: [x('assisted-pull-up')], regressionExerciseIds: [], substitutionExerciseIds: [x('machine-row')], unilateral: false, tech: 'pull' }),
+  makeExercise({ id: x('assisted-pull-up'), name: 'Assisted Pull-Up', slug: 'assisted-pull-up', movementPattern: 'vertical_pull', difficulty: 'intermediate', equipmentIds: [e('machine'), e('pullup_bar')], primaryMuscleIds: [m('latissimus_dorsi')], secondaryMuscleIds: [m('biceps'), m('rhomboids')], progressionExerciseIds: [], regressionExerciseIds: [x('lat-pulldown')], substitutionExerciseIds: [x('lat-pulldown')], unilateral: false, tech: 'pull' }),
+  makeExercise({ id: x('dumbbell-biceps-curl'), name: 'Dumbbell Biceps Curl', slug: 'dumbbell-biceps-curl', movementPattern: 'elbow_flexion', difficulty: 'beginner', equipmentIds: [e('dumbbell')], primaryMuscleIds: [m('biceps')], secondaryMuscleIds: [m('forearms')], progressionExerciseIds: [], regressionExerciseIds: [], substitutionExerciseIds: [x('hammer-curl')], unilateral: false, tech: 'arms' }),
+  makeExercise({ id: x('hammer-curl'), name: 'Hammer Curl', slug: 'hammer-curl', movementPattern: 'elbow_flexion', difficulty: 'beginner', equipmentIds: [e('dumbbell')], primaryMuscleIds: [m('biceps'), m('forearms')], secondaryMuscleIds: [], progressionExerciseIds: [], regressionExerciseIds: [], substitutionExerciseIds: [x('dumbbell-biceps-curl')], unilateral: false, tech: 'arms' }),
+  makeExercise({ id: x('triceps-pushdown'), name: 'Triceps Pushdown', slug: 'triceps-pushdown', movementPattern: 'elbow_extension', difficulty: 'beginner', equipmentIds: [e('cable')], primaryMuscleIds: [m('triceps')], secondaryMuscleIds: [], progressionExerciseIds: [], regressionExerciseIds: [], substitutionExerciseIds: [x('overhead-triceps-extension')], unilateral: false, tech: 'arms' }),
+  makeExercise({ id: x('overhead-triceps-extension'), name: 'Overhead Triceps Extension', slug: 'overhead-triceps-extension', movementPattern: 'elbow_extension', difficulty: 'intermediate', equipmentIds: [e('dumbbell'), e('cable')], primaryMuscleIds: [m('triceps')], secondaryMuscleIds: [m('anterior_deltoid')], progressionExerciseIds: [], regressionExerciseIds: [x('triceps-pushdown')], substitutionExerciseIds: [x('triceps-pushdown')], unilateral: false, tech: 'arms' }),
+  makeExercise({ id: x('plank'), name: 'Plank', slug: 'plank', movementPattern: 'core_anti_extension', difficulty: 'beginner', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('trunk_stabilizers')], secondaryMuscleIds: [m('gluteus_maximus'), m('anterior_deltoid')], progressionExerciseIds: [x('side-plank')], regressionExerciseIds: [x('dead-bug')], substitutionExerciseIds: [x('bird-dog')], unilateral: false, tech: 'core' }),
+  makeExercise({ id: x('side-plank'), name: 'Side Plank', slug: 'side-plank', movementPattern: 'core_anti_rotation', difficulty: 'intermediate', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('trunk_stabilizers')], secondaryMuscleIds: [m('gluteus_maximus'), m('lateral_deltoid')], progressionExerciseIds: [], regressionExerciseIds: [x('bird-dog')], substitutionExerciseIds: [x('dead-bug')], unilateral: true, tech: 'core' }),
+  makeExercise({ id: x('dead-bug'), name: 'Dead Bug', slug: 'dead-bug', movementPattern: 'core_anti_extension', difficulty: 'beginner', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('trunk_stabilizers')], secondaryMuscleIds: [], progressionExerciseIds: [x('plank')], regressionExerciseIds: [], substitutionExerciseIds: [x('bird-dog')], unilateral: true, tech: 'core' }),
+  makeExercise({ id: x('bird-dog'), name: 'Bird Dog', slug: 'bird-dog', movementPattern: 'core_anti_rotation', difficulty: 'beginner', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('trunk_stabilizers')], secondaryMuscleIds: [m('gluteus_maximus'), m('posterior_deltoid')], progressionExerciseIds: [x('side-plank')], regressionExerciseIds: [], substitutionExerciseIds: [x('dead-bug')], unilateral: true, tech: 'core' }),
+  makeExercise({ id: x('walking'), name: 'Walking', slug: 'walking', movementPattern: 'locomotion', difficulty: 'beginner', equipmentIds: [e('bodyweight')], primaryMuscleIds: [m('quadriceps'), m('gluteus_maximus')], secondaryMuscleIds: [m('calves'), m('hamstrings')], progressionExerciseIds: [x('incline-walking')], regressionExerciseIds: [], substitutionExerciseIds: [], unilateral: false, tech: 'cardio' }),
+  makeExercise({ id: x('incline-walking'), name: 'Incline Walking', slug: 'incline-walking', movementPattern: 'cardio', difficulty: 'beginner', equipmentIds: [e('machine')], primaryMuscleIds: [m('gluteus_maximus'), m('calves')], secondaryMuscleIds: [m('quadriceps'), m('hamstrings')], progressionExerciseIds: [], regressionExerciseIds: [x('walking')], substitutionExerciseIds: [x('walking')], unilateral: false, tech: 'cardio' }),
+]
+
+export const exerciseMediaSeed: ExerciseMedia[] = exerciseSeed.map((exercise): ExerciseMedia => ({
+  ...metadata(`media-${exercise.slug}`), exerciseId: exercise.id, provider: 'Nuffield Health', mediaType: 'video', status: 'PENDING',
+  openMode: 'external', sourceName: 'Nuffield Health', notes: 'Doğrudan egzersiz referansı henüz doğrulanmadı.',
+})).map((media): ExerciseMedia => media.exerciseId === x('push-up') ? {
+  ...media, status: 'VERIFIED', url: 'https://247.nuffieldhealth.com/videos/how-to-master-your-push-up', sourceUrl: 'https://247.nuffieldhealth.com/videos/how-to-master-your-push-up', lastVerifiedAt: '2026-08-24T00:00:00.000Z', notes: 'Push-up tekniği ve regresyonlarını gösteren Nuffield Health videosu.',
+} : media.exerciseId === x('bodyweight-squat') ? {
+  ...media, status: 'VERIFIED', mediaType: 'article', url: 'https://www.nuffieldhealth.com/article/how-to-protect-and-strengthen-your-hips-and-knees', sourceUrl: 'https://www.nuffieldhealth.com/article/how-to-protect-and-strengthen-your-hips-and-knees', lastVerifiedAt: '2026-08-24T00:00:00.000Z', notes: 'Nuffield Health squat uygulama ve varyasyon referansı.',
+} : media)
+
+export const exerciseHealthConsiderationSeed: ExerciseHealthConsideration[] = [
+  ['bodyweight-squat', 'knee_problem'], ['romanian-deadlift', 'lumbar_disc_herniation'], ['dumbbell-shoulder-press', 'shoulder_problem'],
+  ['walking', 'hypertension'], ['plank', 'lumbar_disc_herniation'],
+].map(([slug, conditionType]) => ({
+  ...metadata(`consideration-${slug}-${conditionType}`), exerciseId: x(slug), conditionType: conditionType as ExerciseHealthConsideration['conditionType'],
+  status: 'GENERAL', symptomTriggers: [], alternativeExerciseIds: [], evidenceIds: [], reviewed: false, reviewStatus: 'PENDING',
+}))
+
+export const exerciseEvidenceSeed: EvidenceReference[] = [
+  { ...metadata('evidence-nuffield-push-up'), title: 'How To Master Your Push-up', organization: 'Nuffield Health', year: 2020, url: 'https://247.nuffieldhealth.com/videos/how-to-master-your-push-up', evidenceType: 'guideline', lastReviewedAt: stamp, verificationStatus: 'VERIFIED', reviewStatus: 'PENDING' },
+  { ...metadata('evidence-nuffield-squat'), title: 'How to protect and strengthen your knees and hips', organization: 'Nuffield Health', year: 2016, url: 'https://www.nuffieldhealth.com/article/how-to-protect-and-strengthen-your-hips-and-knees', evidenceType: 'guideline', lastReviewedAt: stamp, verificationStatus: 'VERIFIED', reviewStatus: 'PENDING' },
+]

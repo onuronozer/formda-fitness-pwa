@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedInAs(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function verifiedOwner(userId) {
+      return signedInAs(userId) && request.auth.token.email_verified == true;
+    }
+
+    function validRecord(recordId, userId, data) {
+      return data.keys().hasOnly(['id', 'userId', 'localUserId', 'entityType', 'entityId', 'operation', 'payload', 'entityVersion', 'entityUpdatedAt', 'clientId', 'syncedAt'])
+        && data.keys().hasAll(['id', 'userId', 'localUserId', 'entityType', 'entityId', 'operation', 'payload', 'entityVersion', 'entityUpdatedAt', 'clientId', 'syncedAt'])
+        && data.id == recordId
+        && data.userId == userId
+        && data.localUserId is string
+        && data.entityType is string
+        && data.entityId is string
+        && data.operation in ['upsert', 'delete']
+        && data.payload is map
+        && data.entityVersion is int
+        && data.entityVersion >= 1
+        && data.entityUpdatedAt is string
+        && data.clientId is string
+        && data.syncedAt is string;
+    }
+
+    match /users/{userId}/records/{recordId} {
+      allow create: if verifiedOwner(userId) && validRecord(recordId, userId, request.resource.data);
+      allow read: if signedInAs(userId) && resource.data.userId == userId;
+      allow update: if verifiedOwner(userId)
+        && resource.data.userId == userId
+        && validRecord(recordId, userId, request.resource.data)
+        && request.resource.data.localUserId == resource.data.localUserId
+        && request.resource.data.entityId == resource.data.entityId
+        && request.resource.data.entityType == resource.data.entityType;
+      allow delete: if signedInAs(userId) && resource.data.userId == userId;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
