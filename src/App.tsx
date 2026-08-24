@@ -1,13 +1,14 @@
 import React, { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, LoaderCircle } from 'lucide-react'
+import { AlertTriangle, LoaderCircle, RefreshCw } from 'lucide-react'
 import { initializeDatabase } from './db/database'
 import { UserRepository } from './db/repositories'
 import { ensureSeedVersions } from './seed/seedService'
 import { AppLayout } from './app/AppLayout'
 import { accountService } from './services/AccountService'
 import { reportTechnicalError } from './utils/technicalError'
+import { clearStaleBundleRecovery, recoverFromStaleBundle } from './utils/staleBundleRecovery'
 
 const OnboardingPage = lazy(() => import('./features/onboarding/OnboardingPage').then((module) => ({ default: module.OnboardingPage })))
 const TodayPage = lazy(() => import('./features/today/TodayPage').then((module) => ({ default: module.TodayPage })))
@@ -25,18 +26,22 @@ const userRepository = new UserRepository()
 class AppErrorBoundary extends React.Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch(error: Error) { reportTechnicalError('AppErrorBoundary', error) }
+  componentDidCatch(error: Error) {
+    reportTechnicalError('AppErrorBoundary', error)
+    recoverFromStaleBundle(error)
+  }
   render() {
-    if (this.state.failed) return <SystemMessage title="Bir şeyler ters gitti" message="Uygulamayı yeniden açıp tekrar dene." />
+    if (this.state.failed) return <SystemMessage title="Bir şeyler ters gitti" message="Sayfayı güncelleyip tekrar dene." action={{ label: 'Yeniden yükle', run: () => { clearStaleBundleRecovery(); window.location.reload() } }} />
     return this.props.children
   }
 }
 
-function SystemMessage({ title, message, loading = false }: { title: string; message: string; loading?: boolean }) {
+function SystemMessage({ title, message, loading = false, action }: { title: string; message: string; loading?: boolean; action?: { label: string; run: () => void } }) {
   return (
     <main className="system-screen" role={loading ? 'status' : 'alert'}>
       {loading ? <LoaderCircle className="spin" size={28} /> : <AlertTriangle size={28} />}
       <h1>{title}</h1><p>{message}</p>
+      {action && <button className="primary-button" onClick={action.run}><RefreshCw size={18} /> {action.label}</button>}
     </main>
   )
 }

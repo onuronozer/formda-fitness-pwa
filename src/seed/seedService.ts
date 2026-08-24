@@ -6,6 +6,7 @@ import { clinicalEvidenceSeed, CLINICAL_EVIDENCE_SEED_VERSION } from './evidence
 import { intervalProtocolSeed } from './intervalSeed'
 import { INTERVAL_RULE_VERSION } from '../config/phase3b'
 import { NUTRITION_SEED_VERSION } from '../config/nutrition'
+import { EXERCISE_DIFFICULTIES, MOVEMENT_PATTERNS } from '../domain/enums'
 
 const exerciseSeedTasks = new WeakMap<FormdaDatabase, Promise<void>>()
 const nutritionSeedTasks = new WeakMap<FormdaDatabase, Promise<void>>()
@@ -86,18 +87,32 @@ async function hasValidExerciseSeed(database: FormdaDatabase) {
   const [exercises, muscles, equipment] = await Promise.all([
     database.exercises.toArray(), database.muscles.toArray(), database.equipment.toArray(),
   ])
-  if (exercises.length < CORE_EXERCISE_COUNTS.exercises || muscles.length < CORE_EXERCISE_COUNTS.muscles || equipment.length < CORE_EXERCISE_COUNTS.equipment) return false
+  if (exercises.length !== CORE_EXERCISE_COUNTS.exercises || muscles.length !== CORE_EXERCISE_COUNTS.muscles || equipment.length !== CORE_EXERCISE_COUNTS.equipment) return false
+
+  const hasValidCatalogEntry = (item: { id: unknown; name: unknown; slug: unknown; active: unknown; seedVersion: unknown }) =>
+    typeof item.id === 'string' && item.id.length > 0
+    && typeof item.name === 'string' && item.name.length > 0
+    && typeof item.slug === 'string' && item.slug.length > 0
+    && typeof item.active === 'boolean'
+    && typeof item.seedVersion === 'number' && Number.isFinite(item.seedVersion)
+  if (!muscles.every(hasValidCatalogEntry) || !equipment.every(hasValidCatalogEntry)) return false
 
   const muscleIds = new Set(muscles.map((item) => item.id))
   const equipmentIds = new Set(equipment.map((item) => item.id))
   const exerciseIds = new Set(exercises.map((item) => item.id))
+  const movementPatterns = new Set<string>(MOVEMENT_PATTERNS)
+  const difficulties = new Set<string>(EXERCISE_DIFFICULTIES)
   const arrayFields = ['equipmentIds', 'primaryMuscleIds', 'secondaryMuscleIds', 'instructions', 'commonMistakes', 'progressionExerciseIds', 'regressionExerciseIds', 'substitutionExerciseIds'] as const
 
   return exercises.every((exercise) =>
-    typeof exercise.name === 'string'
-    && typeof exercise.slug === 'string'
+    hasValidCatalogEntry(exercise)
+    && movementPatterns.has(exercise.movementPattern)
+    && difficulties.has(exercise.difficulty)
+    && typeof exercise.unilateral === 'boolean'
     && typeof exercise.active === 'boolean'
-    && arrayFields.every((field) => Array.isArray(exercise[field]))
+    && arrayFields.every((field) => Array.isArray(exercise[field]) && exercise[field].every((value) => typeof value === 'string'))
+    && exercise.primaryMuscleIds.length > 0
+    && exercise.instructions.length > 0
     && exercise.primaryMuscleIds.every((id) => muscleIds.has(id))
     && exercise.secondaryMuscleIds.every((id) => muscleIds.has(id))
     && exercise.equipmentIds.every((id) => equipmentIds.has(id))
