@@ -39,6 +39,7 @@ h1, h2, p { overflow-wrap: anywhere; }
 .system-screen svg { color: var(--accent); }
 .system-screen h1 { margin: 4px 0 0; color: var(--text-primary); font-size: 1.35rem; }
 .system-screen p { margin: 0; font-size: .9rem; }
+.technical-error-code { max-width: min(560px, 90vw); overflow-wrap: anywhere; color: var(--text-muted); font-size: .72rem; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 

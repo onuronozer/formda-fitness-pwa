@@ -23,24 +23,27 @@ const AuthPage = lazy(() => import('./features/auth/AuthPage').then((module) => 
 
 const userRepository = new UserRepository()
 
-class AppErrorBoundary extends React.Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
-  static getDerivedStateFromError() { return { failed: true } }
+class AppErrorBoundary extends React.Component<{ children: ReactNode }, { failed: boolean; technicalCode?: string }> {
+  state: { failed: boolean; technicalCode?: string } = { failed: false }
+  static getDerivedStateFromError(error: Error) {
+    return { failed: true, technicalCode: `${error.name}: ${error.message}`.slice(0, 180) }
+  }
   componentDidCatch(error: Error) {
     reportTechnicalError('AppErrorBoundary', error)
     recoverFromStaleBundle(error)
   }
   render() {
-    if (this.state.failed) return <SystemMessage title="Bir şeyler ters gitti" message="Sayfayı güncelleyip tekrar dene." action={{ label: 'Yeniden yükle', run: () => { clearStaleBundleRecovery(); window.location.reload() } }} />
+    if (this.state.failed) return <SystemMessage title="Bir şeyler ters gitti" message="Sayfayı güncelleyip tekrar dene." technicalCode={this.state.technicalCode} action={{ label: 'Yeniden yükle', run: () => { clearStaleBundleRecovery(); window.location.reload() } }} />
     return this.props.children
   }
 }
 
-function SystemMessage({ title, message, loading = false, action }: { title: string; message: string; loading?: boolean; action?: { label: string; run: () => void } }) {
+function SystemMessage({ title, message, loading = false, action, technicalCode }: { title: string; message: string; loading?: boolean; action?: { label: string; run: () => void }; technicalCode?: string }) {
   return (
     <main className="system-screen" role={loading ? 'status' : 'alert'}>
       {loading ? <LoaderCircle className="spin" size={28} /> : <AlertTriangle size={28} />}
       <h1>{title}</h1><p>{message}</p>
+      {technicalCode && <code className="technical-error-code">{technicalCode}</code>}
       {action && <button className="primary-button" onClick={action.run}><RefreshCw size={18} /> {action.label}</button>}
     </main>
   )
